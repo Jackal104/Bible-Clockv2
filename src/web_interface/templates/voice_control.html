@@ -1,0 +1,463 @@
+{% extends "base.html" %}
+
+{% block title %}Voice Control - Bible Clock{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <div class="flex justify-between items-center">
+            <div>
+                <h2 class="text-2xl font-bold text-bible-dark mb-2">Voice Control</h2>
+                <p class="text-gray-600">Enhanced voice control with "Bible Clock" wake word and AI assistance</p>
+            </div>
+            <div class="flex space-x-3">
+                <button onclick="testVoice()" class="btn-secondary">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 14.142M6.343 6.343a9 9 0 000 12.728m2.828-2.828a5 5 0 000-7.072M9 21a3.001 3.001 0 006 0l-6 0z"></path>
+                    </svg>
+                    Test Voice
+                </button>
+                <button onclick="clearHistory()" class="btn-primary">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                    </svg>
+                    Clear History
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Voice Status -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="text-lg font-semibold text-bible-dark mb-4">Voice Control Status</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="text-center">
+                <div id="voice-status-indicator" class="w-16 h-16 rounded-full mx-auto mb-2 bg-gray-300 flex items-center justify-center">
+                    <svg class="w-8 h-8 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 14.142M6.343 6.343a9 9 0 000 12.728m2.828-2.828a5 5 0 000-7.072M9 21a3.001 3.001 0 006 0l-6 0z"></path>
+                    </svg>
+                </div>
+                <h4 class="font-medium text-gray-900" id="voice-status-text">Checking...</h4>
+                <p class="text-sm text-gray-500">Voice Recognition</p>
+            </div>
+            
+            <div class="text-center">
+                <div id="chatgpt-status-indicator" class="w-16 h-16 rounded-full mx-auto mb-2 bg-gray-300 flex items-center justify-center">
+                    <svg class="w-8 h-8 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                    </svg>
+                </div>
+                <h4 class="font-medium text-gray-900" id="chatgpt-status-text">Checking...</h4>
+                <p class="text-sm text-gray-500">AI Assistant</p>
+            </div>
+            
+            <div class="text-center">
+                <div id="help-status-indicator" class="w-16 h-16 rounded-full mx-auto mb-2 bg-green-100 flex items-center justify-center">
+                    <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <h4 class="font-medium text-gray-900">Available</h4>
+                <p class="text-sm text-gray-500">Help System</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Wake Word Information -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="text-lg font-semibold text-bible-dark mb-4">
+            <svg class="w-5 h-5 inline mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+            </svg>
+            "Bible Clock" Wake Word
+        </h3>
+        
+        <div class="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <div class="flex items-center mb-2">
+                <svg class="w-5 h-5 text-blue-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <span class="font-semibold text-blue-800">Wake Word</span>
+            </div>
+            <p class="text-blue-700">
+                All commands start with <strong>"Bible Clock"</strong> followed by your request.
+                For comprehensive help, say <strong>"Bible Clock help"</strong>.
+            </p>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <h4 class="text-lg font-medium text-gray-800 mb-4">Display Control</h4>
+                <div class="space-y-2 text-sm">
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">"Bible Clock, speak verse"</span>
+                        <span class="text-blue-600">Read current verse</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">"Bible Clock, refresh display"</span>
+                        <span class="text-blue-600">Update display</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">"Bible Clock, change background"</span>
+                        <span class="text-blue-600">Switch background</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">"Bible Clock, cycle mode"</span>
+                        <span class="text-blue-600">Change translation</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">"Bible Clock, time mode"</span>
+                        <span class="text-blue-600">Switch to time mode</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">"Bible Clock, date mode"</span>
+                        <span class="text-blue-600">Switch to date mode</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">"Bible Clock, random mode"</span>
+                        <span class="text-blue-600">Switch to random mode</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div>
+                <h4 class="text-lg font-medium text-gray-800 mb-4">Information & Help</h4>
+                <div class="space-y-2 text-sm">
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">"Bible Clock, help"</span>
+                        <span class="text-blue-600">Complete help guide</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">"Bible Clock, what time is it"</span>
+                        <span class="text-blue-600">Current time</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">"Bible Clock, system status"</span>
+                        <span class="text-blue-600">System health</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">"Bible Clock, current mode"</span>
+                        <span class="text-blue-600">Display mode info</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">"Bible Clock, current verse"</span>
+                        <span class="text-blue-600">Verse information</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">"Bible Clock, help questions"</span>
+                        <span class="text-blue-600">AI question examples</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Biblical Questions -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="text-lg font-semibold text-bible-dark mb-4">Biblical Questions (AI Assistant)</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="space-y-3">
+                <h4 class="font-medium text-gray-800">Example Questions</h4>
+                <div class="space-y-1 text-sm">
+                    <div class="text-gray-600">"Bible Clock, what does this verse mean?"</div>
+                    <div class="text-gray-600">"Bible Clock, who was King David?"</div>
+                    <div class="text-gray-600">"Bible Clock, explain the parable of..."</div>
+                    <div class="text-gray-600">"Bible Clock, what happened in Exodus?"</div>
+                    <div class="text-gray-600">"Bible Clock, help me understand..."</div>
+                    <div class="text-gray-600">"Bible Clock, tell me about biblical love"</div>
+                    <div class="text-gray-600">"Bible Clock, why is this important?"</div>
+                    <div class="text-gray-600">"Bible Clock, how should I pray?"</div>
+                </div>
+            </div>
+            
+            <div class="space-y-3">
+                <h4 class="font-medium text-gray-800">AI Features</h4>
+                <div class="space-y-2">
+                    <div class="flex items-center">
+                        <svg class="w-4 h-4 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                        <span class="text-sm">Context-aware responses</span>
+                    </div>
+                    <div class="flex items-center">
+                        <svg class="w-4 h-4 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                        <span class="text-sm">Knows current verse displayed</span>
+                    </div>
+                    <div class="flex items-center">
+                        <svg class="w-4 h-4 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                        <span class="text-sm">Conversation memory</span>
+                    </div>
+                    <div class="flex items-center">
+                        <svg class="w-4 h-4 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                        <span class="text-sm">Biblical scholarship knowledge</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mt-4 p-3 bg-green-50 rounded-lg">
+            <p class="text-sm text-green-800">
+                <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                </svg>
+                <strong>AI Context:</strong> The assistant knows the current verse being displayed 
+                and can provide detailed explanations, historical context, and spiritual insights.
+                Ask any biblical question naturally!
+            </p>
+        </div>
+    </div>
+
+    <!-- Conversation History -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="text-lg font-semibold text-bible-dark mb-4">Recent Conversations</h3>
+        <div id="conversation-history" class="space-y-3">
+            <div class="text-center text-gray-500 py-8">
+                <svg class="w-12 h-12 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                </svg>
+                <p>No recent conversations. Say "Bible Clock" followed by a question to start!</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Configuration -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="text-lg font-semibold text-bible-dark mb-4">Voice Configuration</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <h4 class="font-medium text-gray-800 mb-3">Voice Settings</h4>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Speech Rate</label>
+                        <input type="range" id="voice-rate" min="50" max="300" value="150" class="w-full">
+                        <div class="flex justify-between text-xs text-gray-500">
+                            <span>Slow</span>
+                            <span>Fast</span>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Volume</label>
+                        <input type="range" id="voice-volume" min="0" max="1" step="0.1" value="0.8" class="w-full">
+                        <div class="flex justify-between text-xs text-gray-500">
+                            <span>Quiet</span>
+                            <span>Loud</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div>
+                <h4 class="font-medium text-gray-800 mb-3">AI Settings</h4>
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <label class="text-sm font-medium text-gray-700">ChatGPT Integration</label>
+                            <p class="text-sm text-gray-500">Enable AI biblical questions</p>
+                        </div>
+                        <label class="toggle">
+                            <input type="checkbox" id="chatgpt-enabled">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <label class="text-sm font-medium text-gray-700">Help System</label>
+                            <p class="text-sm text-gray-500">Enable voice help commands</p>
+                        </div>
+                        <label class="toggle">
+                            <input type="checkbox" id="help-enabled" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Load voice control status on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadVoiceStatus();
+    loadConversationHistory();
+    
+    // Set up event listeners
+    document.getElementById('voice-rate').addEventListener('change', updateVoiceSettings);
+    document.getElementById('voice-volume').addEventListener('change', updateVoiceSettings);
+    document.getElementById('chatgpt-enabled').addEventListener('change', updateVoiceSettings);
+    document.getElementById('help-enabled').addEventListener('change', updateVoiceSettings);
+});
+
+function loadVoiceStatus() {
+    // This would call the voice control API
+    fetch('/api/voice/status')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateVoiceStatusUI(data.data);
+            } else {
+                showVoiceOffline();
+            }
+        })
+        .catch(error => {
+            console.error('Voice status error:', error);
+            showVoiceOffline();
+        });
+}
+
+function updateVoiceStatusUI(status) {
+    // Update voice recognition status
+    const voiceIndicator = document.getElementById('voice-status-indicator');
+    const voiceText = document.getElementById('voice-status-text');
+    
+    if (status.enabled && status.listening) {
+        voiceIndicator.className = 'w-16 h-16 rounded-full mx-auto mb-2 bg-green-100 flex items-center justify-center';
+        voiceIndicator.querySelector('svg').className = 'w-8 h-8 text-green-600';
+        voiceText.textContent = 'Listening';
+    } else if (status.enabled) {
+        voiceIndicator.className = 'w-16 h-16 rounded-full mx-auto mb-2 bg-yellow-100 flex items-center justify-center';
+        voiceIndicator.querySelector('svg').className = 'w-8 h-8 text-yellow-600';
+        voiceText.textContent = 'Ready';
+    } else {
+        voiceIndicator.className = 'w-16 h-16 rounded-full mx-auto mb-2 bg-red-100 flex items-center justify-center';
+        voiceIndicator.querySelector('svg').className = 'w-8 h-8 text-red-600';
+        voiceText.textContent = 'Disabled';
+    }
+    
+    // Update ChatGPT status
+    const chatgptIndicator = document.getElementById('chatgpt-status-indicator');
+    const chatgptText = document.getElementById('chatgpt-status-text');
+    
+    if (status.chatgpt_enabled) {
+        chatgptIndicator.className = 'w-16 h-16 rounded-full mx-auto mb-2 bg-blue-100 flex items-center justify-center';
+        chatgptIndicator.querySelector('svg').className = 'w-8 h-8 text-blue-600';
+        chatgptText.textContent = 'Active';
+    } else {
+        chatgptIndicator.className = 'w-16 h-16 rounded-full mx-auto mb-2 bg-gray-100 flex items-center justify-center';
+        chatgptIndicator.querySelector('svg').className = 'w-8 h-8 text-gray-600';
+        chatgptText.textContent = 'Disabled';
+    }
+    
+    // Update form controls
+    document.getElementById('voice-rate').value = status.voice_rate || 150;
+    document.getElementById('voice-volume').value = status.voice_volume || 0.8;
+    document.getElementById('chatgpt-enabled').checked = status.chatgpt_enabled || false;
+    document.getElementById('help-enabled').checked = status.help_enabled !== false;
+}
+
+function showVoiceOffline() {
+    document.getElementById('voice-status-text').textContent = 'Offline';
+    document.getElementById('chatgpt-status-text').textContent = 'Offline';
+}
+
+function loadConversationHistory() {
+    // This would load recent ChatGPT conversations
+    fetch('/api/voice/history')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.data.length > 0) {
+                displayConversationHistory(data.data);
+            }
+        })
+        .catch(error => console.error('History load error:', error));
+}
+
+function displayConversationHistory(history) {
+    const container = document.getElementById('conversation-history');
+    
+    if (history.length === 0) {
+        return;
+    }
+    
+    container.innerHTML = history.slice(-5).map(item => `
+        <div class="border rounded-lg p-4">
+            <div class="flex justify-between items-start mb-2">
+                <h5 class="font-medium text-gray-900">Question:</h5>
+                <span class="text-xs text-gray-500">${new Date(item.timestamp).toLocaleString()}</span>
+            </div>
+            <p class="text-sm text-gray-700 mb-3">${item.question}</p>
+            <h5 class="font-medium text-gray-900 mb-1">Answer:</h5>
+            <p class="text-sm text-gray-700">${item.answer}</p>
+            ${item.verse_context ? `<p class="text-xs text-gray-500 mt-2">Context: ${item.verse_context}</p>` : ''}
+        </div>
+    `).join('');
+}
+
+function testVoice() {
+    fetch('/api/voice/test', { method: 'POST' })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Voice test initiated', 'success');
+            } else {
+                showNotification('Voice test failed', 'error');
+            }
+        })
+        .catch(error => {
+            showNotification('Network error during voice test', 'error');
+        });
+}
+
+function clearHistory() {
+    if (!confirm('Are you sure you want to clear the conversation history?')) {
+        return;
+    }
+    
+    fetch('/api/voice/clear-history', { method: 'POST' })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Conversation history cleared', 'success');
+                loadConversationHistory();
+            } else {
+                showNotification('Failed to clear history', 'error');
+            }
+        })
+        .catch(error => {
+            showNotification('Network error clearing history', 'error');
+        });
+}
+
+function updateVoiceSettings() {
+    const settings = {
+        voice_rate: parseInt(document.getElementById('voice-rate').value),
+        voice_volume: parseFloat(document.getElementById('voice-volume').value),
+        chatgpt_enabled: document.getElementById('chatgpt-enabled').checked,
+        help_enabled: document.getElementById('help-enabled').checked
+    };
+    
+    fetch('/api/voice/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Voice settings updated', 'success');
+        } else {
+            showNotification('Failed to update voice settings', 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('Network error updating settings', 'error');
+    });
+}
+
+function showNotification(message, type) {
+    // Simple notification - could be enhanced with toast library
+    console.log(`${type.toUpperCase()}: ${message}`);
+}
+</script>
+{% endblock %}

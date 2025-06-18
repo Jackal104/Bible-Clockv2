@@ -1,0 +1,451 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Bible Clock{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <div class="flex justify-between items-center">
+            <div>
+                <h2 class="text-2xl font-bold text-bible-dark">Bible Clock Dashboard</h2>
+                <p class="text-gray-600 mt-1">Real-time verse display and system monitoring</p>
+            </div>
+            <div class="flex space-x-3">
+                <button onclick="refreshDisplay()" class="btn-primary">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                    </svg>
+                    Refresh Display
+                </button>
+                <button onclick="toggleAutoRefresh()" id="auto-refresh-btn" class="btn-secondary">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    Auto-Refresh: ON
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Current Verse Display -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Verse Content -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-bible-dark mb-4">Current Verse</h3>
+            <div id="verse-content" class="space-y-4">
+                <div class="text-center">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-bible-accent mx-auto"></div>
+                    <p class="text-gray-500 mt-2">Loading verse...</p>
+                </div>
+            </div>
+            <div class="mt-4 pt-4 border-t border-gray-200">
+                <div class="flex justify-between text-sm text-gray-500">
+                    <span id="verse-timestamp">Updated: --</span>
+                    <span id="verse-mode">Mode: --</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Display Preview -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-bible-dark mb-4">E-ink Display Preview</h3>
+            <div class="aspect-video bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center" id="display-preview">
+                <div class="text-center">
+                    <svg class="w-12 h-12 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                    </svg>
+                    <p class="text-gray-500">Display preview will appear here</p>
+                </div>
+            </div>
+            <div class="mt-4 text-center">
+                <button onclick="generatePreview()" class="btn-secondary">Generate Preview</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Status Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <!-- System Health -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="p-2 bg-green-100 rounded-lg">
+                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <h4 class="text-sm font-medium text-gray-500">System Health</h4>
+                    <p class="text-2xl font-semibold text-gray-900" id="system-health">Healthy</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- CPU Usage -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="p-2 bg-blue-100 rounded-lg">
+                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <h4 class="text-sm font-medium text-gray-500">CPU Usage</h4>
+                    <p class="text-2xl font-semibold text-gray-900" id="cpu-usage">--%</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Memory Usage -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="p-2 bg-yellow-100 rounded-lg">
+                    <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <h4 class="text-sm font-medium text-gray-500">Memory</h4>
+                    <p class="text-2xl font-semibold text-gray-900" id="memory-usage">--%</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Verses Today -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="p-2 bg-purple-100 rounded-lg">
+                    <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <h4 class="text-sm font-medium text-gray-500">Verses Today</h4>
+                    <p class="text-2xl font-semibold text-gray-900" id="verses-today">--</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Settings -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="text-lg font-semibold text-bible-dark mb-4">Quick Settings</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- Display Mode -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Display Mode</label>
+                <select id="display-mode" class="form-select" onchange="updateDisplayMode()">
+                    <option value="time">Time-based</option>
+                    <option value="date">Date-based</option>
+                    <option value="random">Random</option>
+                </select>
+            </div>
+
+            <!-- Translation -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Translation</label>
+                <select id="translation" class="form-select" onchange="updateTranslation()">
+                    <option value="kjv">King James Version</option>
+                    <option value="esv">English Standard Version</option>
+                    <option value="nasb">New American Standard</option>
+                    <option value="niv">New International Version</option>
+                </select>
+            </div>
+
+            <!-- Background -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Background</label>
+                <div class="flex space-x-2">
+                    <select id="background" class="form-select flex-1" onchange="updateBackground()">
+                        <option value="0">Background 1</option>
+                    </select>
+                    <button onclick="cycleBackground()" class="btn-secondary px-3">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="text-lg font-semibold text-bible-dark mb-4">Recent Activity</h3>
+        <div id="activity-log" class="space-y-3">
+            <div class="text-center text-gray-500 py-8">
+                <svg class="w-12 h-12 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <p>Activity log will appear here</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let autoRefreshEnabled = true;
+let refreshInterval;
+
+// Load initial data
+document.addEventListener('DOMContentLoaded', function() {
+    loadCurrentVerse();
+    loadSystemStatus();
+    loadSettings();
+    startAutoRefresh();
+});
+
+function loadCurrentVerse() {
+    fetch('/api/verse')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayVerse(data.data);
+            } else {
+                showError('Failed to load verse');
+            }
+        })
+        .catch(error => showError('Network error loading verse'));
+}
+
+function displayVerse(verse) {
+    const content = document.getElementById('verse-content');
+    const eventName = verse.event_name || '';
+    const isDateEvent = verse.is_date_event || false;
+    const isSummary = verse.is_summary || false;
+    
+    let html = '';
+    
+    if (isDateEvent) {
+        html = `
+            <div class="text-center">
+                <h4 class="text-xl font-bold text-bible-accent mb-2">${eventName}</h4>
+                <p class="text-lg font-semibold text-bible-dark mb-4">${verse.reference}</p>
+                <blockquote class="text-gray-700 italic leading-relaxed">"${verse.text}"</blockquote>
+                ${verse.event_description ? `<p class="text-sm text-gray-500 mt-4">${verse.event_description}</p>` : ''}
+            </div>
+        `;
+    } else if (isSummary) {
+        html = `
+            <div class="text-center">
+                <h4 class="text-xl font-bold text-bible-accent mb-4">Book of ${verse.book}</h4>
+                <p class="text-gray-700 leading-relaxed">${verse.text}</p>
+            </div>
+        `;
+    } else {
+        html = `
+            <div class="text-center">
+                <p class="text-lg font-semibold text-bible-dark mb-4">${verse.reference}</p>
+                <blockquote class="text-gray-700 italic leading-relaxed">"${verse.text}"</blockquote>
+            </div>
+        `;
+    }
+    
+    content.innerHTML = html;
+    
+    // Update timestamp and mode
+    document.getElementById('verse-timestamp').textContent = 
+        `Updated: ${new Date(verse.timestamp).toLocaleTimeString()}`;
+    document.getElementById('verse-mode').textContent = 
+        `Mode: ${verse.date_match || 'time'}`;
+}
+
+function loadSystemStatus() {
+    fetch('/api/status')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateSystemStatus(data.data);
+            }
+        })
+        .catch(error => console.error('Status load error:', error));
+}
+
+function updateSystemStatus(status) {
+    document.getElementById('system-health').textContent = 'Healthy';
+    document.getElementById('cpu-usage').textContent = 
+        status.system ? Math.round(status.system.cpu_percent) + '%' : '--';
+    document.getElementById('memory-usage').textContent = 
+        status.system ? Math.round(status.system.memory_percent) + '%' : '--';
+    document.getElementById('verses-today').textContent = '1440'; // Minutes in day
+}
+
+function loadSettings() {
+    fetch('/api/settings')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateSettingsUI(data.data);
+            }
+        })
+        .catch(error => console.error('Settings load error:', error));
+}
+
+function updateSettingsUI(settings) {
+    document.getElementById('display-mode').value = settings.display_mode || 'time';
+    document.getElementById('translation').value = settings.translation || 'kjv';
+    
+    // Update background options
+    const backgroundSelect = document.getElementById('background');
+    backgroundSelect.innerHTML = '';
+    if (settings.available_backgrounds) {
+        settings.available_backgrounds.forEach(bg => {
+            const option = document.createElement('option');
+            option.value = bg.index;
+            option.textContent = bg.name;
+            option.selected = bg.current;
+            backgroundSelect.appendChild(option);
+        });
+    }
+}
+
+function refreshDisplay() {
+    fetch('/api/refresh', { method: 'POST' })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showSuccess('Display refreshed');
+                loadCurrentVerse();
+            } else {
+                showError('Failed to refresh display');
+            }
+        })
+        .catch(error => showError('Network error during refresh'));
+}
+
+function generatePreview() {
+    const previewDiv = document.getElementById('display-preview');
+    previewDiv.innerHTML = `
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-bible-accent"></div>
+    `;
+    
+    fetch('/api/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            previewDiv.innerHTML = `
+                <img src="${data.preview_url}?${Date.now()}" 
+                     alt="Display Preview" 
+                     class="max-w-full max-h-full rounded-lg shadow-sm">
+            `;
+        } else {
+            showPreviewError();
+        }
+    })
+    .catch(error => showPreviewError());
+}
+
+function showPreviewError() {
+    document.getElementById('display-preview').innerHTML = `
+        <div class="text-center">
+            <svg class="w-12 h-12 text-red-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <p class="text-red-500">Preview generation failed</p>
+        </div>
+    `;
+}
+
+function updateDisplayMode() {
+    const mode = document.getElementById('display-mode').value;
+    updateSetting('display_mode', mode);
+}
+
+function updateTranslation() {
+    const translation = document.getElementById('translation').value;
+    updateSetting('translation', translation);
+}
+
+function updateBackground() {
+    const backgroundIndex = parseInt(document.getElementById('background').value);
+    updateSetting('background_index', backgroundIndex);
+}
+
+function updateSetting(key, value) {
+    const data = {};
+    data[key] = value;
+    
+    fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showSuccess('Settings updated');
+            if (key === 'display_mode' || key === 'translation') {
+                setTimeout(loadCurrentVerse, 500);
+            }
+        } else {
+            showError('Failed to update settings');
+        }
+    })
+    .catch(error => showError('Network error updating settings'));
+}
+
+function cycleBackground() {
+    const currentIndex = parseInt(document.getElementById('background').value);
+    const options = document.getElementById('background').options;
+    const nextIndex = (currentIndex + 1) % options.length;
+    document.getElementById('background').value = nextIndex;
+    updateBackground();
+}
+
+function toggleAutoRefresh() {
+    autoRefreshEnabled = !autoRefreshEnabled;
+    const btn = document.getElementById('auto-refresh-btn');
+    
+    if (autoRefreshEnabled) {
+        btn.innerHTML = `
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            Auto-Refresh: ON
+        `;
+        startAutoRefresh();
+    } else {
+        btn.innerHTML = `
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            Auto-Refresh: OFF
+        `;
+        stopAutoRefresh();
+    }
+}
+
+function startAutoRefresh() {
+    if (refreshInterval) clearInterval(refreshInterval);
+    refreshInterval = setInterval(() => {
+        if (autoRefreshEnabled) {
+            loadCurrentVerse();
+            loadSystemStatus();
+        }
+    }, 30000); // 30 seconds
+}
+
+function stopAutoRefresh() {
+    if (refreshInterval) {
+        clearInterval(refreshInterval);
+        refreshInterval = null;
+    }
+}
+
+function showSuccess(message) {
+    // Could implement toast notifications here
+    console.log('Success:', message);
+}
+
+function showError(message) {
+    // Could implement toast notifications here
+    console.error('Error:', message);
+}
+</script>
+{% endblock %}
