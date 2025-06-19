@@ -280,9 +280,9 @@
                         <div class="bg-gray-50 p-3 rounded-lg">
                             <div class="flex items-center justify-between mb-2">
                                 <label class="text-sm font-medium text-gray-700">Verse Size</label>
-                                <span id="verse-size-value" class="text-sm text-bible-accent font-semibold">36px</span>
+                                <span id="verse-size-value" class="text-sm text-bible-accent font-semibold">80px</span>
                             </div>
-                            <input type="range" id="verse-size" class="w-full" min="18" max="60" value="36" 
+                            <input type="range" id="verse-size" class="w-full" min="18" max="120" value="80" 
                                    oninput="updateFontSizeValue('verse'); updateFontPreview(); updateFontSize('verse_size', this.value)">
                         </div>
                         
@@ -495,12 +495,12 @@ function updateSettingsUI(settings) {
     // Update font sizes
     if (settings.font_sizes) {
         document.getElementById('title-size').value = settings.font_sizes.title_size || 48;
-        document.getElementById('verse-size').value = settings.font_sizes.verse_size || 36;
+        document.getElementById('verse-size').value = settings.font_sizes.verse_size || 80;
         document.getElementById('reference-size').value = settings.font_sizes.reference_size || 32;
         
-        document.getElementById('title-size-value').textContent = settings.font_sizes.title_size || 48;
-        document.getElementById('verse-size-value').textContent = settings.font_sizes.verse_size || 36;
-        document.getElementById('reference-size-value').textContent = settings.font_sizes.reference_size || 32;
+        document.getElementById('title-size-value').textContent = (settings.font_sizes.title_size || 48) + 'px';
+        document.getElementById('verse-size-value').textContent = (settings.font_sizes.verse_size || 80) + 'px';
+        document.getElementById('reference-size-value').textContent = (settings.font_sizes.reference_size || 32) + 'px';
     }
 }
 

@@ -288,7 +288,12 @@ def create_app(verse_manager, image_generator, display_manager, service_manager,
                     app.verse_manager.secondary_translation = data['secondary_translation']
                 
                 if 'background_index' in data:
-                    app.image_generator.current_background_index = data['background_index']
+                    bg_index = data['background_index']
+                    if 0 <= bg_index < len(app.image_generator.backgrounds):
+                        app.image_generator.current_background_index = bg_index
+                    else:
+                        app.logger.warning(f"Invalid background index: {bg_index}")
+                        app.image_generator.current_background_index = 0
                 
                 if 'font' in data:
                     app.image_generator.current_font_name = data['font']

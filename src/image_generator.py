@@ -23,7 +23,7 @@ class ImageGenerator:
         
         # Font sizes (configurable)
         self.title_size = int(os.getenv('TITLE_FONT_SIZE', '48'))
-        self.verse_size = int(os.getenv('VERSE_FONT_SIZE', '36'))
+        self.verse_size = int(os.getenv('VERSE_FONT_SIZE', '80'))  # Larger default
         self.reference_size = int(os.getenv('REFERENCE_FONT_SIZE', '32'))
         
         self._discover_fonts()
@@ -128,8 +128,18 @@ class ImageGenerator:
     
     def create_verse_image(self, verse_data: Dict) -> Image.Image:
         """Create an image for a Bible verse."""
-        # Get current background
-        background = self.backgrounds[self.current_background_index].copy()
+        # Get current background with safe indexing
+        try:
+            if 0 <= self.current_background_index < len(self.backgrounds):
+                background = self.backgrounds[self.current_background_index].copy()
+            else:
+                self.logger.warning(f"Invalid background index {self.current_background_index}, using index 0")
+                self.current_background_index = 0
+                background = self.backgrounds[0].copy()
+        except Exception as e:
+            self.logger.error(f"Error loading background: {e}")
+            # Create a default white background
+            background = Image.new('L', (self.width, self.height), 255)
         
         # Create overlay for text
         overlay = Image.new('RGBA', (self.width, self.height), (255, 255, 255, 0))
@@ -165,31 +175,30 @@ class ImageGenerator:
     
     def _draw_verse(self, draw: ImageDraw.Draw, verse_data: Dict, margin: int, content_width: int):
         """Draw a regular Bible verse."""
-        y_position = margin
-        
-        # Draw reference at top
-        reference = verse_data['reference']
-        if self.reference_font:
-            ref_bbox = draw.textbbox((0, 0), reference, font=self.reference_font)
-            ref_width = ref_bbox[2] - ref_bbox[0]
-            ref_x = (self.width - ref_width) // 2
-            draw.text((ref_x, y_position), reference, fill=0, font=self.reference_font)
-            y_position += ref_bbox[3] - ref_bbox[1] + 40
-        
-        # Draw verse text (wrapped)
         verse_text = verse_data['text']
-        wrapped_text = self._wrap_text(verse_text, content_width, self.verse_font)
         
+        # Auto-scale font size to fit the verse
+        optimal_font = self._get_optimal_font_size(verse_text, content_width, margin)
+        
+        # Calculate vertical centering
+        wrapped_text = self._wrap_text(verse_text, content_width, optimal_font)
+        total_text_height = len(wrapped_text) * (optimal_font.size + 20) - 20  # Remove extra spacing from last line
+        
+        # Center vertically (leaving space for bottom reference)
+        available_height = self.height - (2 * margin) - 80  # Reserve space for bottom reference
+        y_position = margin + (available_height - total_text_height) // 2
+        
+        # Ensure minimum top margin
+        y_position = max(margin, y_position)
+        
+        # Draw verse text (wrapped and centered)
         for line in wrapped_text:
-            if self.verse_font:
-                line_bbox = draw.textbbox((0, 0), line, font=self.verse_font)
+            if optimal_font:
+                line_bbox = draw.textbbox((0, 0), line, font=optimal_font)
                 line_width = line_bbox[2] - line_bbox[0]
                 line_x = (self.width - line_width) // 2
-                draw.text((line_x, y_position), line, fill=0, font=self.verse_font)
+                draw.text((line_x, y_position), line, fill=0, font=optimal_font)
                 y_position += line_bbox[3] - line_bbox[1] + 20
-        
-        # Add decorative elements
-        self._add_decorative_elements(draw, y_position)
         
         # Add verse reference in bottom-right corner
         self._add_verse_reference_display(draw, verse_data)
@@ -222,6 +231,81 @@ class ImageGenerator:
         # Add verse reference in bottom-right corner
         self._add_verse_reference_display(draw, verse_data)
     
+    def _get_optimal_font_size(self, text: str, content_width: int, margin: int) -> ImageFont.ImageFont:
+        """Get optimal font size that fits the text within the display bounds."""
+        max_font_size = self.verse_size
+        min_font_size = 24
+        available_height = self.height - (2 * margin) - 80  # Reserve space for bottom reference
+        
+        # Start with desired size and scale down if needed
+        for font_size in range(max_font_size, min_font_size - 1, -2):
+            try:
+                if self.current_font_name != 'default' and self.available_fonts[self.current_font_name]:
+                    test_font = ImageFont.truetype(self.available_fonts[self.current_font_name], font_size)
+                else:
+                    test_font = ImageFont.truetype(str(Path('data/fonts/DejaVuSans.ttf')), font_size)
+                
+                # Test if text fits
+                wrapped_text = self._wrap_text(text, content_width, test_font)
+                total_height = len(wrapped_text) * (font_size + 20)
+                
+                if total_height <= available_height:
+                    return test_font
+                    
+            except Exception:
+                # Fallback to default font
+                try:
+                    test_font = ImageFont.load_default()
+                    wrapped_text = self._wrap_text(text, content_width, test_font)
+                    return test_font
+                except:
+                    continue
+        
+        # If all else fails, use minimum size
+        try:
+            if self.current_font_name != 'default' and self.available_fonts[self.current_font_name]:
+                return ImageFont.truetype(self.available_fonts[self.current_font_name], min_font_size)
+            else:
+                return ImageFont.truetype(str(Path('data/fonts/DejaVuSans.ttf')), min_font_size)
+        except:
+            return ImageFont.load_default()
+
+    def _get_optimal_font_size_parallel(self, primary_text: str, secondary_text: str, column_width: int, margin: int) -> ImageFont.ImageFont:
+        """Get optimal font size for parallel translations."""
+        max_font_size = min(self.verse_size, 60)  # Smaller max for parallel mode
+        min_font_size = 20
+        available_height = self.height - (2 * margin) - 150  # Reserve more space for labels and reference
+        
+        # Test both texts and find size that fits both
+        for font_size in range(max_font_size, min_font_size - 1, -2):
+            try:
+                if self.current_font_name != 'default' and self.available_fonts[self.current_font_name]:
+                    test_font = ImageFont.truetype(self.available_fonts[self.current_font_name], font_size)
+                else:
+                    test_font = ImageFont.truetype(str(Path('data/fonts/DejaVuSans.ttf')), font_size)
+                
+                # Test both texts
+                wrapped_primary = self._wrap_text(primary_text, column_width, test_font)
+                wrapped_secondary = self._wrap_text(secondary_text, column_width, test_font)
+                
+                max_lines = max(len(wrapped_primary), len(wrapped_secondary))
+                total_height = max_lines * (font_size + 15)
+                
+                if total_height <= available_height:
+                    return test_font
+                    
+            except Exception:
+                continue
+        
+        # Fallback
+        try:
+            if self.current_font_name != 'default' and self.available_fonts[self.current_font_name]:
+                return ImageFont.truetype(self.available_fonts[self.current_font_name], min_font_size)
+            else:
+                return ImageFont.truetype(str(Path('data/fonts/DejaVuSans.ttf')), min_font_size)
+        except:
+            return ImageFont.load_default()
+
     def _wrap_text(self, text: str, max_width: int, font: Optional[ImageFont.ImageFont]) -> list:
         """Wrap text to fit within specified width."""
         if not font:
@@ -519,71 +603,65 @@ class ImageGenerator:
     
     def _draw_parallel_verse(self, draw: ImageDraw.Draw, verse_data: Dict, margin: int, content_width: int):
         """Draw verse with parallel translations side by side."""
-        y_position = margin
-        
-        # Draw reference at top (centered)
-        reference = verse_data['reference']
-        if self.reference_font:
-            ref_bbox = draw.textbbox((0, 0), reference, font=self.reference_font)
-            ref_width = ref_bbox[2] - ref_bbox[0]
-            ref_x = (self.width - ref_width) // 2
-            draw.text((ref_x, y_position), reference, fill=0, font=self.reference_font)
-            y_position += ref_bbox[3] - ref_bbox[1] + 30
-        
-        # Draw translation labels
-        primary_label = verse_data.get('primary_translation', 'KJV')
-        secondary_label = verse_data.get('secondary_translation', 'AMP')
-        
-        if self.reference_font:
-            # Left label
-            left_bbox = draw.textbbox((0, 0), primary_label, font=self.reference_font)
-            left_x = margin + (content_width // 4) - ((left_bbox[2] - left_bbox[0]) // 2)
-            draw.text((left_x, y_position), primary_label, fill=64, font=self.reference_font)
-            
-            # Right label
-            right_bbox = draw.textbbox((0, 0), secondary_label, font=self.reference_font)
-            right_x = margin + (3 * content_width // 4) - ((right_bbox[2] - right_bbox[0]) // 2)
-            draw.text((right_x, y_position), secondary_label, fill=64, font=self.reference_font)
-            
-            y_position += left_bbox[3] - left_bbox[1] + 30
-        
         # Split content into two columns
         column_width = (content_width - 40) // 2  # 40px gap between columns
         left_margin = margin
         right_margin = margin + column_width + 40
         
-        # Draw primary translation (left)
+        # Get optimal font size for both texts
         primary_text = verse_data['text']
-        wrapped_primary = self._wrap_text(primary_text, column_width, self.verse_font)
+        secondary_text = verse_data.get('secondary_text', 'Translation not available')
         
-        for line in wrapped_primary:
-            if self.verse_font:
-                line_bbox = draw.textbbox((0, 0), line, font=self.verse_font)
-                draw.text((left_margin, y_position), line, fill=0, font=self.verse_font)
-                y_position += line_bbox[3] - line_bbox[1] + 15
+        # Use smaller auto-scale for parallel mode
+        optimal_font = self._get_optimal_font_size_parallel(primary_text, secondary_text, column_width, margin)
         
-        # Reset y_position for secondary translation
+        # Draw translation labels at top
+        primary_label = verse_data.get('primary_translation', 'KJV')
+        secondary_label = verse_data.get('secondary_translation', 'AMP')
+        
         y_position = margin
         if self.reference_font:
-            ref_bbox = draw.textbbox((0, 0), reference, font=self.reference_font)
-            y_position += ref_bbox[3] - ref_bbox[1] + 30
+            # Left label
             left_bbox = draw.textbbox((0, 0), primary_label, font=self.reference_font)
+            left_x = left_margin + (column_width // 2) - ((left_bbox[2] - left_bbox[0]) // 2)
+            draw.text((left_x, y_position), primary_label, fill=64, font=self.reference_font)
+            
+            # Right label
+            right_bbox = draw.textbbox((0, 0), secondary_label, font=self.reference_font)
+            right_x = right_margin + (column_width // 2) - ((right_bbox[2] - right_bbox[0]) // 2)
+            draw.text((right_x, y_position), secondary_label, fill=64, font=self.reference_font)
+            
             y_position += left_bbox[3] - left_bbox[1] + 30
         
-        # Draw secondary translation (right)
-        secondary_text = verse_data.get('secondary_text', 'Translation not available')
-        wrapped_secondary = self._wrap_text(secondary_text, column_width, self.verse_font)
+        # Calculate vertical centering for text content
+        wrapped_primary = self._wrap_text(primary_text, column_width, optimal_font)
+        wrapped_secondary = self._wrap_text(secondary_text, column_width, optimal_font)
         
+        max_lines = max(len(wrapped_primary), len(wrapped_secondary))
+        total_text_height = max_lines * (optimal_font.size + 15)
+        available_height = self.height - y_position - margin - 80  # Reserve space for bottom reference
+        
+        text_start_y = y_position + (available_height - total_text_height) // 2
+        text_start_y = max(y_position, text_start_y)
+        
+        # Draw primary translation (left)
+        current_y = text_start_y
+        for line in wrapped_primary:
+            if optimal_font:
+                draw.text((left_margin, current_y), line, fill=0, font=optimal_font)
+                current_y += optimal_font.size + 15
+        
+        # Draw secondary translation (right)
+        current_y = text_start_y
         for line in wrapped_secondary:
-            if self.verse_font:
-                line_bbox = draw.textbbox((0, 0), line, font=self.verse_font)
-                draw.text((right_margin, y_position), line, fill=0, font=self.verse_font)
-                y_position += line_bbox[3] - line_bbox[1] + 15
+            if optimal_font:
+                draw.text((right_margin, current_y), line, fill=0, font=optimal_font)
+                current_y += optimal_font.size + 15
         
         # Add a vertical separator line
         separator_x = margin + column_width + 20
-        separator_start_y = margin + 80
-        separator_end_y = y_position - 20
+        separator_start_y = text_start_y - 10
+        separator_end_y = current_y + 10
         draw.line([(separator_x, separator_start_y), (separator_x, separator_end_y)], fill=128, width=1)
         
         # Add verse reference in bottom-right corner for parallel mode too
