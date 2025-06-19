@@ -190,6 +190,9 @@ class ImageGenerator:
         
         # Add decorative elements
         self._add_decorative_elements(draw, y_position)
+        
+        # Add verse reference in bottom-right corner
+        self._add_verse_reference_display(draw, verse_data)
     
     def _draw_book_summary(self, draw: ImageDraw.Draw, verse_data: Dict, margin: int, content_width: int):
         """Draw a book summary."""
@@ -215,6 +218,9 @@ class ImageGenerator:
                 line_x = (self.width - line_width) // 2
                 draw.text((line_x, y_position), line, fill=0, font=self.verse_font)
                 y_position += line_bbox[3] - line_bbox[1] + 25
+        
+        # Add verse reference in bottom-right corner
+        self._add_verse_reference_display(draw, verse_data)
     
     def _wrap_text(self, text: str, max_width: int, font: Optional[ImageFont.ImageFont]) -> list:
         """Wrap text to fit within specified width."""
@@ -311,10 +317,27 @@ class ImageGenerator:
         """Set current font."""
         if font_name in self.available_fonts:
             self.current_font_name = font_name
-            self._load_fonts()  # Reload fonts with new selection
+            self._load_fonts_with_selection()  # Reload fonts with new selection
             self.logger.info(f"Font changed to: {font_name}")
         else:
             raise ValueError(f"Font not available: {font_name}")
+    
+    def _load_fonts_with_selection(self):
+        """Load fonts using the current font selection."""
+        try:
+            if self.current_font_name != 'default' and self.available_fonts[self.current_font_name]:
+                font_path = self.available_fonts[self.current_font_name]
+                self.title_font = ImageFont.truetype(font_path, self.title_size)
+                self.verse_font = ImageFont.truetype(font_path, self.verse_size)
+                self.reference_font = ImageFont.truetype(font_path, self.reference_size)
+                self.logger.info(f"Loaded font: {self.current_font_name}")
+            else:
+                # Use default font loading
+                self._load_fonts()
+        except Exception as e:
+            self.logger.warning(f"Failed to load selected font {self.current_font_name}: {e}")
+            # Fallback to default font loading
+            self._load_fonts()
     
     def set_font_temporarily(self, font_name: str):
         """Temporarily set font for preview without persisting."""
@@ -362,15 +385,16 @@ class ImageGenerator:
     
     def get_available_fonts(self) -> List[Dict]:
         """Get available fonts with metadata."""
-        return [
-            {
+        fonts = []
+        for name, path in self.available_fonts.items():
+            display_name = name.replace('_', ' ').replace('-', ' ').title() if name != 'default' else 'Default Font'
+            fonts.append({
                 'name': name,
-                'display_name': name.replace('_', ' ').title() if name != 'default' else 'Default',
+                'display_name': display_name,
                 'path': path,
                 'current': name == self.current_font_name
-            }
-            for name, path in self.available_fonts.items()
-        ]
+            })
+        return fonts
     
     def get_current_font(self) -> str:
         """Get current font name."""
@@ -489,6 +513,9 @@ class ImageGenerator:
                         line_x = (self.width - line_width) // 2
                         draw.text((line_x, y_position), line, fill=96, font=self.reference_font)
                         y_position += line_bbox[3] - line_bbox[1] + 15
+        
+        # Add verse reference in bottom-right corner
+        self._add_verse_reference_display(draw, verse_data)
     
     def _draw_parallel_verse(self, draw: ImageDraw.Draw, verse_data: Dict, margin: int, content_width: int):
         """Draw verse with parallel translations side by side."""
@@ -558,3 +585,27 @@ class ImageGenerator:
         separator_start_y = margin + 80
         separator_end_y = y_position - 20
         draw.line([(separator_x, separator_start_y), (separator_x, separator_end_y)], fill=128, width=1)
+        
+        # Add verse reference in bottom-right corner for parallel mode too
+        self._add_verse_reference_display(draw, verse_data)
+    
+    def _add_verse_reference_display(self, draw: ImageDraw.Draw, verse_data: Dict):
+        """Add verse reference in bottom-right corner as time display."""
+        reference = verse_data.get('reference', 'Unknown')
+        
+        if self.reference_font:
+            # Position in bottom-right corner with margin
+            margin_x = 40
+            margin_y = 40
+            
+            # Get text dimensions
+            ref_bbox = draw.textbbox((0, 0), reference, font=self.reference_font)
+            text_width = ref_bbox[2] - ref_bbox[0]
+            text_height = ref_bbox[3] - ref_bbox[1]
+            
+            # Calculate position (bottom-right aligned)
+            x = self.width - text_width - margin_x
+            y = self.height - text_height - margin_y
+            
+            # Draw reference with emphasis (larger, bolder appearance)
+            draw.text((x, y), reference, fill=0, font=self.reference_font)

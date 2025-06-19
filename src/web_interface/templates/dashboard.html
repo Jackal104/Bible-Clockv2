@@ -82,10 +82,9 @@
                     </div>
                 </div>
                 
-                <!-- Bottom Right Time Display -->
+                <!-- Bottom Right Verse Reference Display -->
                 <div class="absolute bottom-4 right-4 text-right">
-                    <div class="text-sm text-gray-500" id="current-time-display">--:--</div>
-                    <div class="text-lg font-bold text-bible-accent" id="chapter-verse-display">Ch:Vs</div>
+                    <div class="text-lg font-bold text-bible-accent" id="verse-reference-display">--:--</div>
                 </div>
             </div>
             <div class="mt-4 text-center">
@@ -137,6 +136,21 @@
                 <div class="ml-4">
                     <h4 class="text-sm font-medium text-gray-500">Memory</h4>
                     <p class="text-2xl font-semibold text-gray-900" id="memory-usage">--%</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- CPU Temperature -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="p-2 bg-red-100 rounded-lg">
+                    <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <h4 class="text-sm font-medium text-gray-500">CPU Temp</h4>
+                    <p class="text-2xl font-semibold text-gray-900" id="cpu-temperature">--°C</p>
                 </div>
             </div>
         </div>
@@ -343,9 +357,9 @@ document.addEventListener('DOMContentLoaded', function() {
     loadSettings();
     startAutoRefresh();
     
-    // Start time display updates
-    updateTimeDisplay();
-    setInterval(updateTimeDisplay, 1000); // Update every second
+    // Start verse reference display updates
+    updateVerseReferenceDisplay();
+    setInterval(updateVerseReferenceDisplay, 60000); // Update every minute
     
     // Initialize font preview
     updateFontPreview();
@@ -423,6 +437,8 @@ function updateSystemStatus(status) {
         status.system ? Math.round(status.system.cpu_percent) + '%' : '--';
     document.getElementById('memory-usage').textContent = 
         status.system ? Math.round(status.system.memory_percent) + '%' : '--';
+    document.getElementById('cpu-temperature').textContent = 
+        status.system && status.system.cpu_temperature ? status.system.cpu_temperature + '°C' : '--°C';
     document.getElementById('verses-today').textContent = status.verses_today || '0';
 }
 
@@ -541,15 +557,14 @@ function generatePreview() {
                     <img src="${data.preview_url}?${Date.now()}" 
                          alt="Display Preview" 
                          class="w-full h-full object-contain rounded-lg">
-                    <!-- Bottom Right Time Display -->
+                    <!-- Bottom Right Verse Reference Display -->
                     <div class="absolute bottom-4 right-4 text-right">
-                        <div class="text-sm text-gray-500" id="current-time-display">--:--</div>
-                        <div class="text-lg font-bold text-bible-accent" id="chapter-verse-display">Ch:Vs</div>
+                        <div class="text-lg font-bold text-bible-accent" id="verse-reference-display">Loading...</div>
                     </div>
                 </div>
             `;
-            // Restart time display after preview update
-            updateTimeDisplay();
+            // Update verse reference display after preview update
+            updateVerseReferenceDisplay();
         } else {
             showPreviewError();
         }
@@ -702,14 +717,28 @@ function updateFontPreview() {
     document.getElementById('preview-reference').style.fontSize = (referenceSize * 0.4) + 'px';
 }
 
-function updateTimeDisplay() {
-    const now = new Date();
-    const timeStr = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-    const chapter = now.getHours() || 12; // Use 12 for midnight instead of 0
-    const verse = now.getMinutes() || 1; // Use 1 for :00 instead of 0
-    
-    document.getElementById('current-time-display').textContent = timeStr;
-    document.getElementById('chapter-verse-display').textContent = `${chapter}:${verse}`;
+function updateVerseReferenceDisplay() {
+    // Get current verse data to show the reference
+    fetch('/api/verse')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.data.reference) {
+                const referenceElement = document.getElementById('verse-reference-display');
+                if (referenceElement) {
+                    referenceElement.textContent = data.data.reference;
+                }
+            }
+        })
+        .catch(error => {
+            // Fallback to time-based reference if API fails
+            const now = new Date();
+            const chapter = now.getHours() || 12;
+            const verse = now.getMinutes() || 1;
+            const referenceElement = document.getElementById('verse-reference-display');
+            if (referenceElement) {
+                referenceElement.textContent = `Chapter ${chapter}:${verse}`;
+            }
+        });
 }
 
 function updateFontSize(sizeType, value) {

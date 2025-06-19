@@ -74,6 +74,7 @@ def create_app(verse_manager, image_generator, display_manager, service_manager,
                     'cpu_percent': psutil.cpu_percent(),
                     'memory_percent': psutil.virtual_memory().percent,
                     'disk_percent': psutil.disk_usage('/').percent,
+                    'cpu_temperature': _get_cpu_temperature(),
                     'uptime': _get_uptime()
                 }
             }
@@ -291,7 +292,7 @@ def create_app(verse_manager, image_generator, display_manager, service_manager,
                 
                 if 'font' in data:
                     app.image_generator.current_font_name = data['font']
-                    app.image_generator._load_fonts()
+                    app.image_generator._load_fonts_with_selection()
                 
                 if 'font_sizes' in data:
                     sizes = data['font_sizes']
@@ -449,6 +450,36 @@ def create_app(verse_manager, image_generator, display_manager, service_manager,
                 return str(timedelta(seconds=int(uptime_seconds)))
         except:
             return "Unknown"
+    
+    def _get_cpu_temperature():
+        """Get CPU temperature."""
+        try:
+            # Try Raspberry Pi thermal zone first
+            with open('/sys/class/thermal/thermal_zone0/temp', 'r') as f:
+                temp_millidegrees = int(f.read().strip())
+                temp_celsius = temp_millidegrees / 1000.0
+                return round(temp_celsius, 1)
+        except:
+            try:
+                # Try alternative thermal zones
+                import glob
+                thermal_files = glob.glob('/sys/class/thermal/thermal_zone*/temp')
+                if thermal_files:
+                    with open(thermal_files[0], 'r') as f:
+                        temp_millidegrees = int(f.read().strip())
+                        temp_celsius = temp_millidegrees / 1000.0
+                        return round(temp_celsius, 1)
+            except:
+                pass
+            
+            # Simulation mode - return simulated temperature
+            import random
+            simulation_mode = os.getenv('SIMULATION_MODE', 'false').lower() == 'true'
+            if simulation_mode:
+                # Return a realistic simulated temperature
+                return round(45.0 + random.uniform(-5, 10), 1)
+            
+            return None
     
     def _generate_basic_statistics():
         """Generate basic statistics."""
