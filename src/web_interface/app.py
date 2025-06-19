@@ -15,6 +15,10 @@ def create_app(verse_manager, image_generator, display_manager, service_manager,
     app = Flask(__name__, template_folder='templates', static_folder='static')
     app.logger.setLevel(logging.INFO)
     
+    # Disable template caching for development
+    app.config['TEMPLATES_AUTO_RELOAD'] = True
+    app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+    
     # Store component references
     app.verse_manager = verse_manager
     app.image_generator = image_generator
