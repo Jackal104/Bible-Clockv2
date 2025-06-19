@@ -489,13 +489,13 @@ class ImageGenerator:
         if title_size is not None:
             self.title_size = max(12, min(72, title_size))  # Clamp between 12-72
         if verse_size is not None:
-            self.verse_size = max(12, min(60, verse_size))  # Clamp between 12-60
+            self.verse_size = max(12, min(120, verse_size))  # Clamp between 12-120 for larger text
         if reference_size is not None:
             self.reference_size = max(12, min(48, reference_size))  # Clamp between 12-48
         
         # Reload fonts with new sizes
         self._load_fonts()
-        self.logger.info(f"Font sizes updated - Title: {self.title_size}, Verse: {self.verse_size}, Reference: {self.reference_size}")
+        self.logger.info(f"Font sizes updated - Verse: {self.verse_size}, Reference: {self.reference_size}")
     
     def get_font_sizes(self) -> Dict[str, int]:
         """Get current font sizes."""

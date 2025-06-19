@@ -149,9 +149,8 @@ def create_app(verse_manager, image_generator, display_manager, service_manager,
                 app.logger.info(f"Font changed to: {data['font']}")
             
             # Update font sizes
-            if any(key in data for key in ['title_size', 'verse_size', 'reference_size']):
+            if any(key in data for key in ['verse_size', 'reference_size']):
                 app.image_generator.set_font_sizes(
-                    title_size=data.get('title_size'),
                     verse_size=data.get('verse_size'),
                     reference_size=data.get('reference_size')
                 )
@@ -302,7 +301,6 @@ def create_app(verse_manager, image_generator, display_manager, service_manager,
                 if 'font_sizes' in data:
                     sizes = data['font_sizes']
                     app.image_generator.set_font_sizes(
-                        title_size=sizes.get('title_size'),
                         verse_size=sizes.get('verse_size'),
                         reference_size=sizes.get('reference_size')
                     )
@@ -335,7 +333,6 @@ def create_app(verse_manager, image_generator, display_manager, service_manager,
                 app.image_generator.current_background_index = original_background_index
                 app.image_generator.current_font_name = original_font
                 app.image_generator.set_font_sizes(
-                    title_size=original_font_sizes['title_size'],
                     verse_size=original_font_sizes['verse_size'],
                     reference_size=original_font_sizes['reference_size']
                 )
