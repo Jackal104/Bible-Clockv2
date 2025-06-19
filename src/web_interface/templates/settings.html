@@ -33,10 +33,7 @@
                     <label class="block text-sm font-medium text-gray-700 mb-2">Bible Translation</label>
                     <select id="translation" class="form-select" onchange="updateSetting('translation')">
                         <option value="kjv">King James Version (KJV)</option>
-                        <option value="esv">English Standard Version (ESV)</option>
-                        <option value="nasb">New American Standard Bible (NASB)</option>
-                        <option value="niv">New International Version (NIV)</option>
-                        <option value="amp">Amplified Bible (AMP)</option>
+                        <option value="web">World English Bible (WEB)</option>
                     </select>
                     <p class="text-sm text-gray-500 mt-1">Select your preferred Bible translation</p>
                 </div>
@@ -90,23 +87,13 @@
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-3">Font Sizes</label>
                     <div class="space-y-4">
-                        <!-- Title Font Size -->
-                        <div>
-                            <label class="block text-xs text-gray-500 mb-1">Title Size</label>
-                            <div class="flex items-center space-x-3">
-                                <input type="range" id="title-size" class="flex-1" min="24" max="72" value="48" 
-                                       oninput="updateFontSizePreview(); updateSetting('title_size', parseInt(this.value))">
-                                <span id="title-size-value" class="text-sm text-gray-600 w-8">48</span>
-                            </div>
-                        </div>
-                        
                         <!-- Verse Font Size -->
                         <div>
                             <label class="block text-xs text-gray-500 mb-1">Verse Size</label>
                             <div class="flex items-center space-x-3">
-                                <input type="range" id="verse-size" class="flex-1" min="18" max="60" value="36" 
+                                <input type="range" id="verse-size" class="flex-1" min="18" max="120" value="80" 
                                        oninput="updateFontSizePreview(); updateSetting('verse_size', parseInt(this.value))">
-                                <span id="verse-size-value" class="text-sm text-gray-600 w-8">36</span>
+                                <span id="verse-size-value" class="text-sm text-gray-600 w-8">80</span>
                             </div>
                         </div>
                         
@@ -127,7 +114,6 @@
                     <label class="block text-sm font-medium text-gray-700 mb-2">Font Preview</label>
                     <div class="border rounded-lg p-4 bg-gray-50">
                         <div class="text-center space-y-2">
-                            <p id="title-preview" class="font-bold" style="font-size: 20px;">John 3:16</p>
                             <p id="verse-preview" style="font-size: 16px;">"For God so loved the world..."</p>
                             <p id="reference-preview" class="font-bold text-gray-600" style="font-size: 14px;">King James Version</p>
                         </div>
@@ -320,12 +306,10 @@ function populateSettingsForm(settings) {
     
     // Font sizes
     if (settings.font_sizes) {
-        document.getElementById('title-size').value = settings.font_sizes.title_size || 48;
-        document.getElementById('verse-size').value = settings.font_sizes.verse_size || 36;
+        document.getElementById('verse-size').value = settings.font_sizes.verse_size || 80;
         document.getElementById('reference-size').value = settings.font_sizes.reference_size || 32;
         
-        document.getElementById('title-size-value').textContent = settings.font_sizes.title_size || 48;
-        document.getElementById('verse-size-value').textContent = settings.font_sizes.verse_size || 36;
+        document.getElementById('verse-size-value').textContent = settings.font_sizes.verse_size || 80;
         document.getElementById('reference-size-value').textContent = settings.font_sizes.reference_size || 32;
         
         updateFontSizePreview();
@@ -590,17 +574,14 @@ function showSuccess(message) {
 }
 
 function updateFontSizePreview() {
-    const titleSize = document.getElementById('title-size').value;
     const verseSize = document.getElementById('verse-size').value;
     const referenceSize = document.getElementById('reference-size').value;
     
     // Update display values
-    document.getElementById('title-size-value').textContent = titleSize;
     document.getElementById('verse-size-value').textContent = verseSize;
     document.getElementById('reference-size-value').textContent = referenceSize;
     
     // Update preview styles (scaled down for web display)
-    document.getElementById('title-preview').style.fontSize = (titleSize * 0.4) + 'px';
     document.getElementById('verse-preview').style.fontSize = (verseSize * 0.4) + 'px';
     document.getElementById('reference-preview').style.fontSize = (referenceSize * 0.4) + 'px';
 }
