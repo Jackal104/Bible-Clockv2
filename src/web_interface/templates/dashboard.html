@@ -130,7 +130,9 @@
     <!-- Quick Settings -->
     <div class="bg-white rounded-lg shadow p-6">
         <h3 class="text-lg font-semibold text-bible-dark mb-4">Quick Settings</h3>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        
+        <!-- Basic Settings Row -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
             <!-- Display Mode -->
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Display Mode</label>
@@ -149,22 +151,96 @@
                     <option value="esv">English Standard Version</option>
                     <option value="nasb">New American Standard</option>
                     <option value="niv">New International Version</option>
+                    <option value="amp">Amplified Bible</option>
                 </select>
             </div>
 
-            <!-- Background -->
+            <!-- Font Family -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Font Family</label>
+                <select id="font-family" class="form-select" onchange="updateFont()">
+                    <!-- Font options will be loaded here -->
+                </select>
+            </div>
+        </div>
+
+        <!-- Visual Settings Row -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Background Controls -->
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Background</label>
-                <div class="flex space-x-2">
-                    <select id="background" class="form-select flex-1" onchange="updateBackground()">
+                <div class="space-y-3">
+                    <select id="background" class="form-select" onchange="updateBackground()">
                         <option value="0">Background 1</option>
                     </select>
-                    <button onclick="cycleBackground()" class="btn-secondary px-3">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                    <div class="flex space-x-2">
+                        <button onclick="cycleBackground()" class="btn-secondary flex-1">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                            </svg>
+                            Cycle
+                        </button>
+                        <button onclick="randomizeBackground()" class="btn-secondary flex-1">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4V2a1 1 0 011-1h4a1 1 0 011 1v2m3 0V1a1 1 0 011-1h4a1 1 0 011 1v3M7 4h10M9 4v10m6-10v10"></path>
+                            </svg>
+                            Random
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Font Size Controls -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Font Sizes</label>
+                <div class="space-y-2">
+                    <!-- Title Size -->
+                    <div class="flex items-center space-x-3">
+                        <label class="text-xs text-gray-500 w-16">Title:</label>
+                        <input type="range" id="title-size" class="flex-1" min="24" max="72" value="48" 
+                               oninput="updateFontSizeValue('title'); updateFontSize('title_size', this.value)">
+                        <span id="title-size-value" class="text-xs text-gray-600 w-8">48</span>
+                    </div>
+                    
+                    <!-- Verse Size -->
+                    <div class="flex items-center space-x-3">
+                        <label class="text-xs text-gray-500 w-16">Verse:</label>
+                        <input type="range" id="verse-size" class="flex-1" min="18" max="60" value="36" 
+                               oninput="updateFontSizeValue('verse'); updateFontSize('verse_size', this.value)">
+                        <span id="verse-size-value" class="text-xs text-gray-600 w-8">36</span>
+                    </div>
+                    
+                    <!-- Reference Size -->
+                    <div class="flex items-center space-x-3">
+                        <label class="text-xs text-gray-500 w-16">Ref:</label>
+                        <input type="range" id="reference-size" class="flex-1" min="16" max="48" value="32" 
+                               oninput="updateFontSizeValue('reference'); updateFontSize('reference_size', this.value)">
+                        <span id="reference-size-value" class="text-xs text-gray-600 w-8">32</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="mt-6 pt-4 border-t border-gray-200">
+            <div class="flex justify-between items-center">
+                <div class="flex space-x-2">
+                    <button onclick="generatePreviewDashboard()" class="btn-secondary">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                         </svg>
+                        Update Preview
+                    </button>
+                    <button onclick="applyAllSettings()" class="btn-primary">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                        Apply All
                     </button>
                 </div>
+                <a href="/settings" class="text-bible-accent hover:text-bible-dark text-sm font-medium">
+                    Advanced Settings →
+                </a>
             </div>
         </div>
     </div>
@@ -299,6 +375,30 @@ function updateSettingsUI(settings) {
             backgroundSelect.appendChild(option);
         });
     }
+    
+    // Update font family options
+    const fontSelect = document.getElementById('font-family');
+    fontSelect.innerHTML = '';
+    if (settings.available_fonts) {
+        settings.available_fonts.forEach(font => {
+            const option = document.createElement('option');
+            option.value = font.name;
+            option.textContent = font.display_name || font.name;
+            option.selected = font.current;
+            fontSelect.appendChild(option);
+        });
+    }
+    
+    // Update font sizes
+    if (settings.font_sizes) {
+        document.getElementById('title-size').value = settings.font_sizes.title_size || 48;
+        document.getElementById('verse-size').value = settings.font_sizes.verse_size || 36;
+        document.getElementById('reference-size').value = settings.font_sizes.reference_size || 32;
+        
+        document.getElementById('title-size-value').textContent = settings.font_sizes.title_size || 48;
+        document.getElementById('verse-size-value').textContent = settings.font_sizes.verse_size || 36;
+        document.getElementById('reference-size-value').textContent = settings.font_sizes.reference_size || 32;
+    }
 }
 
 function refreshDisplay() {
@@ -391,11 +491,104 @@ function updateSetting(key, value) {
 }
 
 function cycleBackground() {
-    const currentIndex = parseInt(document.getElementById('background').value);
-    const options = document.getElementById('background').options;
-    const nextIndex = (currentIndex + 1) % options.length;
-    document.getElementById('background').value = nextIndex;
-    updateBackground();
+    fetch('/api/background/cycle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ update_display: false })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showSuccess('Background cycled');
+            loadSettings(); // Reload to update UI
+        } else {
+            showError('Failed to cycle background');
+        }
+    })
+    .catch(error => showError('Network error cycling background'));
+}
+
+function randomizeBackground() {
+    fetch('/api/background/randomize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ update_display: false })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showSuccess('Background randomized');
+            loadSettings(); // Reload to update UI
+        } else {
+            showError('Failed to randomize background');
+        }
+    })
+    .catch(error => showError('Network error randomizing background'));
+}
+
+function updateFont() {
+    const font = document.getElementById('font-family').value;
+    updateSetting('font', font);
+}
+
+function updateFontSizeValue(type) {
+    const slider = document.getElementById(`${type}-size`);
+    const display = document.getElementById(`${type}-size-value`);
+    display.textContent = slider.value;
+}
+
+function updateFontSize(sizeType, value) {
+    const data = {};
+    data[sizeType] = parseInt(value);
+    
+    fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Font size updated successfully
+        } else {
+            showError('Failed to update font size');
+        }
+    })
+    .catch(error => showError('Network error updating font size'));
+}
+
+function generatePreviewDashboard() {
+    generatePreview(); // Use existing preview function
+}
+
+function applyAllSettings() {
+    const settings = {
+        display_mode: document.getElementById('display-mode').value,
+        translation: document.getElementById('translation').value,
+        font: document.getElementById('font-family').value,
+        background_index: parseInt(document.getElementById('background').value),
+        title_size: parseInt(document.getElementById('title-size').value),
+        verse_size: parseInt(document.getElementById('verse-size').value),
+        reference_size: parseInt(document.getElementById('reference-size').value),
+        update_display: true
+    };
+    
+    fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showSuccess('All settings applied successfully');
+            loadCurrentVerse();
+            generatePreview();
+        } else {
+            showError('Failed to apply settings');
+        }
+    })
+    .catch(error => showError('Network error applying settings'));
 }
 
 function toggleAutoRefresh() {
