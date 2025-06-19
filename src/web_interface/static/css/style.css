@@ -9,9 +9,22 @@
     @apply text-white bg-bible-accent;
 }
 
+/* New prominent navigation tab styles */
+.nav-tab {
+    @apply text-gray-200 hover:text-white hover:bg-white hover:bg-opacity-10 px-2 py-2 rounded-md text-sm font-medium flex items-center space-x-1 transition-all duration-200 whitespace-nowrap;
+}
+
+.nav-tab.active {
+    @apply text-white bg-bible-accent shadow-sm;
+}
+
 /* Larger screens get more padding */
 @media (min-width: 1024px) {
     .nav-link {
+        @apply px-3 space-x-2;
+    }
+    
+    .nav-tab {
         @apply px-3 space-x-2;
     }
 }
@@ -202,7 +215,7 @@ input:checked + .slider:before {
 
 /* Responsive utilities */
 @media (max-width: 640px) {
-    .nav-link {
+    .nav-link, .nav-tab {
         @apply px-1.5 py-1.5 text-xs space-x-0;
     }
     
@@ -219,11 +232,11 @@ input:checked + .slider:before {
 
 /* Extra small screens - icon-only navigation */
 @media (max-width: 480px) {
-    .nav-link {
+    .nav-link, .nav-tab {
         @apply px-1 py-1 text-xs justify-center min-w-10;
     }
     
-    .nav-link span {
+    .nav-link span, .nav-tab span {
         @apply hidden;
     }
 }
