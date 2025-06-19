@@ -68,29 +68,6 @@
             </div>
         </div>
 
-        <!-- Display Preview -->
-        <div class="bg-white rounded-lg shadow p-6">
-            <h3 class="text-lg font-semibold text-bible-dark mb-4">E-ink Display Preview</h3>
-            <div class="relative aspect-video bg-gray-100 rounded-lg border-2 border-dashed border-gray-300" id="display-preview">
-                <!-- Main Content Area - Centered -->
-                <div class="absolute inset-0 flex items-center justify-center p-8">
-                    <div class="text-center" id="main-content">
-                        <svg class="w-12 h-12 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                        </svg>
-                        <p class="text-gray-500">Display preview will appear here</p>
-                    </div>
-                </div>
-                
-                <!-- Bottom Right Verse Reference Display -->
-                <div class="absolute bottom-4 right-4 text-right">
-                    <div class="text-lg font-bold text-bible-accent" id="verse-reference-display">--:--</div>
-                </div>
-            </div>
-            <div class="mt-4 text-center">
-                <button onclick="generatePreview()" class="btn-secondary">Generate Preview</button>
-            </div>
-        </div>
     </div>
 
     <!-- System Status Cards -->
@@ -220,7 +197,7 @@
                         <!-- Font Family -->
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Font Family</label>
-                            <select id="font-family" class="form-select" onchange="updateFont(); updateFontFamilyPreview()">
+                            <select id="font-family" class="form-select" onchange="updateFont(); updateUnifiedPreview()">
                                 <!-- Font options will be loaded here -->
                             </select>
                             <!-- Font Family Preview -->
@@ -239,17 +216,17 @@
                 <div>
                     <h4 class="text-lg font-medium text-gray-900 mb-4">Background</h4>
                     <div class="space-y-3">
-                        <select id="background" class="form-select" onchange="updateBackground()">
+                        <select id="background" class="form-select" onchange="updateBackground(); updateUnifiedPreview()">
                             <option value="0">Background 1</option>
                         </select>
                         <div class="grid grid-cols-2 gap-2">
-                            <button onclick="cycleBackground()" class="btn-secondary justify-center">
+                            <button onclick="cycleBackground(); updateUnifiedPreview()" class="btn-secondary justify-center">
                                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
                                 </svg>
                                 Cycle
                             </button>
-                            <button onclick="randomizeBackground()" class="btn-secondary justify-center">
+                            <button onclick="randomizeBackground(); updateUnifiedPreview()" class="btn-secondary justify-center">
                                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path>
                                 </svg>
@@ -273,7 +250,7 @@
                                 <span id="verse-size-value" class="text-sm text-bible-accent font-semibold">80px</span>
                             </div>
                             <input type="range" id="verse-size" class="w-full" min="18" max="120" value="80" 
-                                   oninput="updateFontSizeValue('verse'); updateFontPreview(); updateFontSize('verse_size', this.value)">
+                                   oninput="updateFontSizeValue('verse'); updateUnifiedPreview(); updateFontSize('verse_size', this.value)">
                         </div>
                         
                         <!-- Reference Size -->
@@ -283,23 +260,35 @@
                                 <span id="reference-size-value" class="text-sm text-bible-accent font-semibold">32px</span>
                             </div>
                             <input type="range" id="reference-size" class="w-full" min="16" max="48" value="32" 
-                                   oninput="updateFontSizeValue('reference'); updateFontPreview(); updateFontSize('reference_size', this.value)">
+                                   oninput="updateFontSizeValue('reference'); updateUnifiedPreview(); updateFontSize('reference_size', this.value)">
                         </div>
                     </div>
                     
-                    <!-- Live Font Preview -->
+                    <!-- Unified Live Preview -->
                     <div class="mt-4 p-4 bg-white border border-gray-200 rounded-lg">
-                        <h5 class="text-sm font-medium text-gray-700 mb-3">Live Preview</h5>
-                        <div class="text-center space-y-2">
-                            <div id="preview-verse" class="text-gray-700" style="font-size: 32px;">"For God so loved the world, that he gave his only begotten Son..."</div>
-                            <div id="preview-reference" class="font-semibold text-gray-600" style="font-size: 14px;">John 3:16</div>
+                        <h5 class="text-sm font-medium text-gray-700 mb-3">Live E-ink Preview</h5>
+                        <div class="relative aspect-video bg-gray-100 rounded-lg border-2 border-dashed border-gray-300" id="unified-preview">
+                            <!-- Main Content Area - Centered -->
+                            <div class="absolute inset-0 flex items-center justify-center p-8">
+                                <div class="text-center" id="unified-main-content">
+                                    <svg class="w-12 h-12 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                    </svg>
+                                    <p class="text-gray-500">Live preview will appear here</p>
+                                </div>
+                            </div>
+                            
+                            <!-- Bottom Right Verse Reference Display -->
+                            <div class="absolute bottom-4 right-4 text-right">
+                                <div class="text-lg font-bold text-bible-accent" id="unified-verse-reference-display">Loading...</div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Action Buttons -->
                 <div class="space-y-3">
-                    <button onclick="generatePreviewDashboard()" class="btn-secondary w-full justify-center">
+                    <button onclick="updateUnifiedPreview()" class="btn-secondary w-full justify-center">
                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                         </svg>
@@ -350,8 +339,8 @@ document.addEventListener('DOMContentLoaded', function() {
     updateVerseReferenceDisplay();
     setInterval(updateVerseReferenceDisplay, 60000); // Update every minute
     
-    // Initialize font preview
-    updateFontPreview();
+    // Initialize unified preview
+    updateUnifiedPreview();
 });
 
 function loadCurrentVerse() {
@@ -505,69 +494,6 @@ function refreshDisplay() {
         .catch(error => showError('Network error during refresh'));
 }
 
-function generatePreview() {
-    const previewDiv = document.getElementById('display-preview');
-    const mainContent = document.getElementById('main-content');
-    
-    // Show loading spinner
-    mainContent.innerHTML = `
-        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-bible-accent mx-auto"></div>
-        <p class="text-gray-500 mt-2">Generating preview...</p>
-    `;
-    
-    // Get current settings for preview
-    const displayMode = document.getElementById('display-mode').value;
-    const previewSettings = {
-        display_mode: displayMode === 'parallel' ? 'time' : displayMode,
-        parallel_mode: displayMode === 'parallel',
-        translation: document.getElementById('translation').value,
-        secondary_translation: document.getElementById('secondary-translation').value,
-        font: document.getElementById('font-family').value,
-        background_index: parseInt(document.getElementById('background').value),
-        font_sizes: {
-            verse_size: parseInt(document.getElementById('verse-size').value),
-            reference_size: parseInt(document.getElementById('reference-size').value)
-        }
-    };
-    
-    fetch('/api/preview', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(previewSettings)
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            previewDiv.innerHTML = `
-                <div class="relative h-full">
-                    <img src="${data.preview_url}?${Date.now()}" 
-                         alt="Display Preview" 
-                         class="w-full h-full object-contain rounded-lg">
-                    <!-- Bottom Right Verse Reference Display -->
-                    <div class="absolute bottom-4 right-4 text-right">
-                        <div class="text-lg font-bold text-bible-accent" id="verse-reference-display">Loading...</div>
-                    </div>
-                </div>
-            `;
-            // Update verse reference display after preview update
-            updateVerseReferenceDisplay();
-        } else {
-            showPreviewError();
-        }
-    })
-    .catch(error => showPreviewError());
-}
-
-function showPreviewError() {
-    document.getElementById('display-preview').innerHTML = `
-        <div class="text-center">
-            <svg class="w-12 h-12 text-red-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-            </svg>
-            <p class="text-red-500">Preview generation failed</p>
-        </div>
-    `;
-}
 
 function updateDisplayMode() {
     const mode = document.getElementById('display-mode').value;
@@ -585,16 +511,21 @@ function updateDisplayMode() {
         updateSetting('parallel_mode', false);
         updateSetting('display_mode', mode);
     }
+    
+    // Update unified preview when mode changes
+    setTimeout(updateUnifiedPreview, 500); // Give time for settings to update
 }
 
 function updateSecondaryTranslation() {
     const secondaryTranslation = document.getElementById('secondary-translation').value;
     updateSetting('secondary_translation', secondaryTranslation);
+    setTimeout(updateUnifiedPreview, 300);
 }
 
 function updateTranslation() {
     const translation = document.getElementById('translation').value;
     updateSetting('translation', translation);
+    setTimeout(updateUnifiedPreview, 300);
 }
 
 function updateBackground() {
@@ -666,25 +597,6 @@ function updateFont() {
     updateSetting('font', font);
 }
 
-function updateFontFamilyPreview() {
-    const fontSelect = document.getElementById('font-family');
-    const selectedFont = fontSelect.value;
-    const previewElement = document.getElementById('font-preview-sample');
-    
-    // Map font names to actual CSS font families
-    const fontMap = {
-        'default': 'Arial, sans-serif',
-        'DejaVuSans': 'DejaVu Sans, Arial, sans-serif',
-        'DejaVuSans-Bold': 'DejaVu Sans, Arial, sans-serif',
-        'Times': 'Times New Roman, serif',
-        'Georgia': 'Georgia, serif',
-        'Verdana': 'Verdana, sans-serif',
-        'Helvetica': 'Helvetica, Arial, sans-serif'
-    };
-    
-    const cssFont = fontMap[selectedFont] || selectedFont || 'Arial, sans-serif';
-    previewElement.style.fontFamily = cssFont;
-}
 
 function updateFontSizeValue(type) {
     const slider = document.getElementById(`${type}-size`);
@@ -692,13 +604,73 @@ function updateFontSizeValue(type) {
     display.textContent = slider.value + 'px';
 }
 
-function updateFontPreview() {
-    const verseSize = document.getElementById('verse-size').value;
-    const referenceSize = document.getElementById('reference-size').value;
+function updateUnifiedPreview() {
+    const previewDiv = document.getElementById('unified-preview');
+    const mainContent = document.getElementById('unified-main-content');
     
-    // Update live preview (scaled down for web display)
-    document.getElementById('preview-verse').style.fontSize = (verseSize * 0.4) + 'px';
-    document.getElementById('preview-reference').style.fontSize = (referenceSize * 0.4) + 'px';
+    // Show loading spinner
+    mainContent.innerHTML = `
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-bible-accent mx-auto"></div>
+        <p class="text-gray-500 mt-2">Generating preview...</p>
+    `;
+    
+    // Get current settings for preview
+    const displayMode = document.getElementById('display-mode').value;
+    const previewSettings = {
+        display_mode: displayMode === 'parallel' ? 'time' : displayMode,
+        parallel_mode: displayMode === 'parallel',
+        translation: document.getElementById('translation').value,
+        secondary_translation: document.getElementById('secondary-translation').value,
+        font: document.getElementById('font-family').value,
+        background_index: parseInt(document.getElementById('background').value),
+        font_sizes: {
+            verse_size: parseInt(document.getElementById('verse-size').value),
+            reference_size: parseInt(document.getElementById('reference-size').value)
+        }
+    };
+    
+    fetch('/api/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(previewSettings)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            previewDiv.innerHTML = `
+                <div class="relative h-full">
+                    <img src="${data.preview_url}?${Date.now()}" 
+                         alt="Display Preview" 
+                         class="w-full h-full object-contain rounded-lg">
+                    <!-- Bottom Right Verse Reference Display -->
+                    <div class="absolute bottom-4 right-4 text-right">
+                        <div class="text-lg font-bold text-bible-accent" id="unified-verse-reference-display">${data.verse_reference || 'Loading...'}</div>
+                    </div>
+                </div>
+            `;
+            // Update verse reference display after preview update
+            updateVerseReferenceDisplay();
+        } else {
+            showUnifiedPreviewError();
+        }
+    })
+    .catch(error => showUnifiedPreviewError());
+}
+
+function showUnifiedPreviewError() {
+    document.getElementById('unified-preview').innerHTML = `
+        <div class="absolute inset-0 flex items-center justify-center">
+            <div class="text-center">
+                <svg class="w-12 h-12 text-red-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <p class="text-red-500">Preview generation failed</p>
+            </div>
+        </div>
+        <div class="absolute bottom-4 right-4 text-right">
+            <div class="text-lg font-bold text-bible-accent" id="unified-verse-reference-display">Error</div>
+        </div>
+    `;
 }
 
 function updateVerseReferenceDisplay() {
@@ -745,9 +717,6 @@ function updateFontSize(sizeType, value) {
     .catch(error => showError('Network error updating font size'));
 }
 
-function generatePreviewDashboard() {
-    generatePreview(); // Use existing preview function
-}
 
 function applyAllSettings() {
     const displayMode = document.getElementById('display-mode').value;
@@ -773,7 +742,7 @@ function applyAllSettings() {
         if (data.success) {
             showSuccess('All settings applied successfully');
             loadCurrentVerse();
-            generatePreview();
+            updateUnifiedPreview();
         } else {
             showError('Failed to apply settings');
         }
