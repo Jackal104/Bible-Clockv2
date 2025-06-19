@@ -306,6 +306,12 @@
                         </svg>
                         Apply All Settings
                     </button>
+                    <button onclick="refreshPage()" class="btn-secondary w-full justify-center">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                        </svg>
+                        Refresh Dashboard
+                    </button>
                     <a href="/settings" class="block text-center text-bible-accent hover:text-bible-dark text-sm font-medium py-2">
                         Advanced Settings →
                     </a>
@@ -433,16 +439,25 @@ function updateSystemStatus(status) {
 }
 
 function loadSettings() {
-    fetch('/api/settings')
+    return fetch('/api/settings', {
+        cache: 'no-cache',
+        headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+        }
+    })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
                 updateSettingsUI(data.data);
+                return data.data;
+            } else {
+                throw new Error('Settings API returned failure');
             }
         })
         .catch(error => {
             console.warn('Settings loading failed (non-critical):', error);
-            // Don't show error toast for settings loading failures
+            return null;
         });
 }
 
@@ -564,8 +579,9 @@ function updateBackground() {
             if (result.success) {
                 showSuccess('Background updated');
                 // Reload settings to update UI, then update preview
-                loadSettings();
-                setTimeout(updateUnifiedPreview, 1200);
+                loadSettings().then(() => {
+                    setTimeout(updateUnifiedPreview, 800);
+                });
             } else {
                 showError('Failed to update background: ' + (result.error || 'Unknown error'));
             }
@@ -702,7 +718,8 @@ function updateUnifiedPreview() {
                 }
             };
             
-            generatePreviewFromSettings(previewSettings);
+            // Add a small delay to ensure backend has processed the change
+            setTimeout(() => generatePreviewFromSettings(previewSettings), 200);
         })
         .catch(error => {
             console.error('Failed to get current settings:', error);
@@ -727,7 +744,7 @@ function generatePreviewFromSettings(previewSettings) {
         if (data.success) {
             previewDiv.innerHTML = `
                 <div class="relative h-full">
-                    <img src="${data.preview_url}?${Date.now()}" 
+                    <img src="${data.preview_url}?bust=${Date.now()}" 
                          alt="Display Preview" 
                          class="w-full h-full object-contain rounded-lg"
                          onerror="showUnifiedPreviewError()">
@@ -937,6 +954,13 @@ function showToast(message, type) {
             toast.remove();
         }
     }, 3000);
+}
+
+function refreshPage() {
+    showSuccess('Refreshing dashboard...');
+    setTimeout(() => {
+        window.location.reload();
+    }, 500);
 }
 </script>
 {% endblock %}

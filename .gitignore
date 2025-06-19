@@ -151,3 +151,13 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+
+# Security - Never commit sensitive files
+wifi-config.txt
+*wifi*
+*password*
+*credentials*
+*secret*
+*token*
+*.key
+*.pem
