@@ -100,7 +100,7 @@ def create_app(verse_manager, image_generator, display_manager, service_manager,
                 'display_mode': getattr(app.verse_manager, 'display_mode', 'time'),
                 'background_index': app.image_generator.current_background_index,
                 'available_backgrounds': app.image_generator.get_available_backgrounds(),
-                'available_translations': ['kjv', 'web', 'oeb'],
+                'available_translations': ['kjv', 'web'],
                 'parallel_mode': getattr(app.verse_manager, 'parallel_mode', False),
                 'secondary_translation': getattr(app.verse_manager, 'secondary_translation', 'web'),
                 'available_fonts': app.image_generator.get_available_fonts(),
@@ -271,7 +271,7 @@ def create_app(verse_manager, image_generator, display_manager, service_manager,
             original_translation = app.verse_manager.translation
             original_display_mode = getattr(app.verse_manager, 'display_mode', 'time')
             original_parallel_mode = getattr(app.verse_manager, 'parallel_mode', False)
-            original_secondary_translation = getattr(app.verse_manager, 'secondary_translation', 'amp')
+            original_secondary_translation = getattr(app.verse_manager, 'secondary_translation', 'web')
             original_background_index = app.image_generator.current_background_index
             original_font = app.image_generator.current_font_name
             original_font_sizes = app.image_generator.get_font_sizes()
