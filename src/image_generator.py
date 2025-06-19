@@ -409,7 +409,7 @@ class ImageGenerator:
     def _load_fonts_with_selection(self):
         """Load fonts using the current font selection."""
         try:
-            if self.current_font_name != 'default' and self.available_fonts[self.current_font_name]:
+            if self.current_font_name != 'default' and self.current_font_name in self.available_fonts and self.available_fonts[self.current_font_name]:
                 font_path = self.available_fonts[self.current_font_name]
                 self.title_font = ImageFont.truetype(font_path, self.title_size)
                 self.verse_font = ImageFont.truetype(font_path, self.verse_size)

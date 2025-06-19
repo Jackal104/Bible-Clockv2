@@ -582,6 +582,43 @@ class VerseManager:
             self.logger.info(f"Display mode changed to: {mode}")
         else:
             raise ValueError(f"Invalid display mode: {mode}")
+    
+    def _add_parallel_translation(self, verse_data: Dict) -> Dict:
+        """Add secondary translation for parallel mode."""
+        if not verse_data or not hasattr(self, 'secondary_translation'):
+            return verse_data
+        
+        try:
+            # Extract book, chapter, verse from primary verse
+            book = verse_data['book']
+            chapter = verse_data['chapter']
+            verse = verse_data['verse']
+            
+            # Try to get the same verse in secondary translation
+            url = f"{self.api_url}/{book} {chapter}:{verse}"
+            if self.secondary_translation != 'kjv':
+                url += f"?translation={self.secondary_translation}"
+            
+            response = requests.get(url, timeout=self.timeout)
+            response.raise_for_status()
+            
+            secondary_data = response.json()
+            secondary_text = secondary_data.get('text', '').strip()
+            
+            if secondary_text:
+                verse_data['parallel_mode'] = True
+                verse_data['secondary_text'] = secondary_text
+                verse_data['primary_translation'] = self.translation.upper()
+                verse_data['secondary_translation'] = self.secondary_translation.upper()
+                self.logger.info(f"Added parallel translation: {self.secondary_translation}")
+            else:
+                self.logger.warning(f"Empty secondary translation for {book} {chapter}:{verse}")
+                
+        except Exception as e:
+            self.logger.warning(f"Failed to get parallel translation: {e}")
+            # Continue with single translation
+            
+        return verse_data
 
 class VerseScheduler:
     """Handles scheduling of verse updates."""
