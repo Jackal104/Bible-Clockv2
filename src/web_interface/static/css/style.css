@@ -2,11 +2,18 @@
 
 /* Navigation styles */
 .nav-link {
-    @apply text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium flex items-center space-x-2 transition-colors duration-200;
+    @apply text-gray-300 hover:text-white px-2 py-2 rounded-md text-sm font-medium flex items-center space-x-1 transition-colors duration-200 whitespace-nowrap;
 }
 
 .nav-link.active {
     @apply text-white bg-bible-accent;
+}
+
+/* Larger screens get more padding */
+@media (min-width: 1024px) {
+    .nav-link {
+        @apply px-3 space-x-2;
+    }
 }
 
 /* Button styles */
@@ -196,7 +203,7 @@ input:checked + .slider:before {
 /* Responsive utilities */
 @media (max-width: 640px) {
     .nav-link {
-        @apply px-2 py-1 text-xs;
+        @apply px-1.5 py-1.5 text-xs space-x-0;
     }
     
     .btn-primary,
@@ -207,6 +214,17 @@ input:checked + .slider:before {
     
     .stat-value {
         @apply text-2xl;
+    }
+}
+
+/* Extra small screens - icon-only navigation */
+@media (max-width: 480px) {
+    .nav-link {
+        @apply px-1 py-1 text-xs justify-center min-w-10;
+    }
+    
+    .nav-link span {
+        @apply hidden;
     }
 }
 
