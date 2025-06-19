@@ -18,6 +18,15 @@
     @apply text-white bg-bible-accent shadow-sm;
 }
 
+/* Simple clean navigation styles */
+.simple-nav-link {
+    @apply text-gray-600 hover:text-bible-accent px-3 py-2 rounded-md text-sm font-medium flex items-center space-x-2 transition-colors duration-200 whitespace-nowrap;
+}
+
+.simple-nav-link.active {
+    @apply text-bible-accent bg-blue-50 border-b-2 border-bible-accent;
+}
+
 /* Larger screens get more padding */
 @media (min-width: 1024px) {
     .nav-link {

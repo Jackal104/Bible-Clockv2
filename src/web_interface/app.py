@@ -69,6 +69,7 @@ def create_app(verse_manager, image_generator, display_manager, service_manager,
                 'api_url': app.verse_manager.api_url,
                 'display_mode': getattr(app.verse_manager, 'display_mode', 'time'),
                 'current_background': app.image_generator.get_current_background_info(),
+                'verses_today': getattr(app.verse_manager, 'statistics', {}).get('verses_today', 0),
                 'system': {
                     'cpu_percent': psutil.cpu_percent(),
                     'memory_percent': psutil.virtual_memory().percent,

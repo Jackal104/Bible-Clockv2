@@ -23,11 +23,13 @@ class VerseManager:
         self.display_mode = 'time'  # 'time', 'date', 'random'
         self.statistics = {
             'verses_displayed': 0,
+            'verses_today': 0,
             'books_accessed': set(),
             'translation_usage': {},
             'mode_usage': {'time': 0, 'date': 0, 'random': 0}
         }
         self.start_time = datetime.now()
+        self.daily_reset_time = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
         
         # Load local data
         self._load_fallback_verses()
@@ -174,7 +176,14 @@ class VerseManager:
     
     def get_current_verse(self) -> Dict:
         """Get verse based on current display mode."""
+        # Check if we need to reset daily counter
+        now = datetime.now()
+        if now.date() > self.daily_reset_time.date():
+            self.statistics['verses_today'] = 0
+            self.daily_reset_time = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        
         self.statistics['verses_displayed'] += 1
+        self.statistics['verses_today'] += 1
         
         if self.display_mode == 'date':
             verse_data = self._get_date_based_verse()
