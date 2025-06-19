@@ -71,12 +71,21 @@
         <!-- Display Preview -->
         <div class="bg-white rounded-lg shadow p-6">
             <h3 class="text-lg font-semibold text-bible-dark mb-4">E-ink Display Preview</h3>
-            <div class="aspect-video bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center" id="display-preview">
-                <div class="text-center">
-                    <svg class="w-12 h-12 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                    </svg>
-                    <p class="text-gray-500">Display preview will appear here</p>
+            <div class="relative aspect-video bg-gray-100 rounded-lg border-2 border-dashed border-gray-300" id="display-preview">
+                <!-- Main Content Area - Centered -->
+                <div class="absolute inset-0 flex items-center justify-center p-8">
+                    <div class="text-center" id="main-content">
+                        <svg class="w-12 h-12 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                        <p class="text-gray-500">Display preview will appear here</p>
+                    </div>
+                </div>
+                
+                <!-- Bottom Right Time Display -->
+                <div class="absolute bottom-4 right-4 text-right">
+                    <div class="text-sm text-gray-500" id="current-time-display">--:--</div>
+                    <div class="text-lg font-bold text-bible-accent" id="chapter-verse-display">Ch:Vs</div>
                 </div>
             </div>
             <div class="mt-4 text-center">
@@ -166,6 +175,19 @@
                                 <option value="time">Time-based (Hour:Minute = Chapter:Verse)</option>
                                 <option value="date">Date-based (Biblical Calendar Events)</option>
                                 <option value="random">Random Verses</option>
+                                <option value="parallel">Parallel Translations</option>
+                            </select>
+                        </div>
+
+                        <!-- Parallel Translation Settings (shown when parallel mode is selected) -->
+                        <div id="parallel-settings" class="hidden">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Secondary Translation</label>
+                            <select id="secondary-translation" class="form-select" onchange="updateSecondaryTranslation()">
+                                <option value="esv">English Standard Version (ESV)</option>
+                                <option value="nasb">New American Standard Bible (NASB)</option>
+                                <option value="niv">New International Version (NIV)</option>
+                                <option value="amp">Amplified Bible (AMP)</option>
+                                <option value="kjv">King James Version (KJV)</option>
                             </select>
                         </div>
 
@@ -184,9 +206,17 @@
                         <!-- Font Family -->
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Font Family</label>
-                            <select id="font-family" class="form-select" onchange="updateFont()">
+                            <select id="font-family" class="form-select" onchange="updateFont(); updateFontFamilyPreview()">
                                 <!-- Font options will be loaded here -->
                             </select>
+                            <!-- Font Family Preview -->
+                            <div class="mt-2 p-3 bg-gray-50 rounded-lg">
+                                <div class="text-center">
+                                    <div id="font-preview-sample" class="text-lg text-gray-700" style="font-family: inherit;">
+                                        Sample Text: "For God so loved the world"
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -229,7 +259,7 @@
                                 <span id="title-size-value" class="text-sm text-bible-accent font-semibold">48px</span>
                             </div>
                             <input type="range" id="title-size" class="w-full" min="24" max="72" value="48" 
-                                   oninput="updateFontSizeValue('title'); updateFontSize('title_size', this.value)">
+                                   oninput="updateFontSizeValue('title'); updateFontPreview(); updateFontSize('title_size', this.value)">
                         </div>
                         
                         <!-- Verse Size -->
@@ -239,7 +269,7 @@
                                 <span id="verse-size-value" class="text-sm text-bible-accent font-semibold">36px</span>
                             </div>
                             <input type="range" id="verse-size" class="w-full" min="18" max="60" value="36" 
-                                   oninput="updateFontSizeValue('verse'); updateFontSize('verse_size', this.value)">
+                                   oninput="updateFontSizeValue('verse'); updateFontPreview(); updateFontSize('verse_size', this.value)">
                         </div>
                         
                         <!-- Reference Size -->
@@ -249,7 +279,17 @@
                                 <span id="reference-size-value" class="text-sm text-bible-accent font-semibold">32px</span>
                             </div>
                             <input type="range" id="reference-size" class="w-full" min="16" max="48" value="32" 
-                                   oninput="updateFontSizeValue('reference'); updateFontSize('reference_size', this.value)">
+                                   oninput="updateFontSizeValue('reference'); updateFontPreview(); updateFontSize('reference_size', this.value)">
+                        </div>
+                    </div>
+                    
+                    <!-- Live Font Preview -->
+                    <div class="mt-4 p-4 bg-white border border-gray-200 rounded-lg">
+                        <h5 class="text-sm font-medium text-gray-700 mb-3">Live Preview</h5>
+                        <div class="text-center space-y-2">
+                            <div id="preview-title" class="font-bold text-bible-dark" style="font-size: 20px;">John 3:16</div>
+                            <div id="preview-verse" class="text-gray-700" style="font-size: 16px;">"For God so loved the world, that he gave his only begotten Son..."</div>
+                            <div id="preview-reference" class="font-semibold text-gray-600" style="font-size: 14px;">King James Version</div>
                         </div>
                     </div>
                 </div>
@@ -302,6 +342,13 @@ document.addEventListener('DOMContentLoaded', function() {
     loadSystemStatus();
     loadSettings();
     startAutoRefresh();
+    
+    // Start time display updates
+    updateTimeDisplay();
+    setInterval(updateTimeDisplay, 1000); // Update every second
+    
+    // Initialize font preview
+    updateFontPreview();
 });
 
 function loadCurrentVerse() {
@@ -391,8 +438,17 @@ function loadSettings() {
 }
 
 function updateSettingsUI(settings) {
-    document.getElementById('display-mode').value = settings.display_mode || 'time';
+    // Handle parallel mode display
+    if (settings.parallel_mode) {
+        document.getElementById('display-mode').value = 'parallel';
+        document.getElementById('parallel-settings').classList.remove('hidden');
+    } else {
+        document.getElementById('display-mode').value = settings.display_mode || 'time';
+        document.getElementById('parallel-settings').classList.add('hidden');
+    }
+    
     document.getElementById('translation').value = settings.translation || 'kjv';
+    document.getElementById('secondary-translation').value = settings.secondary_translation || 'amp';
     
     // Update background options
     const backgroundSelect = document.getElementById('background');
@@ -448,23 +504,52 @@ function refreshDisplay() {
 
 function generatePreview() {
     const previewDiv = document.getElementById('display-preview');
-    previewDiv.innerHTML = `
-        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-bible-accent"></div>
+    const mainContent = document.getElementById('main-content');
+    
+    // Show loading spinner
+    mainContent.innerHTML = `
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-bible-accent mx-auto"></div>
+        <p class="text-gray-500 mt-2">Generating preview...</p>
     `;
+    
+    // Get current settings for preview
+    const displayMode = document.getElementById('display-mode').value;
+    const previewSettings = {
+        display_mode: displayMode === 'parallel' ? 'time' : displayMode,
+        parallel_mode: displayMode === 'parallel',
+        translation: document.getElementById('translation').value,
+        secondary_translation: document.getElementById('secondary-translation').value,
+        font: document.getElementById('font-family').value,
+        background_index: parseInt(document.getElementById('background').value),
+        font_sizes: {
+            title_size: parseInt(document.getElementById('title-size').value),
+            verse_size: parseInt(document.getElementById('verse-size').value),
+            reference_size: parseInt(document.getElementById('reference-size').value)
+        }
+    };
     
     fetch('/api/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({})
+        body: JSON.stringify(previewSettings)
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
             previewDiv.innerHTML = `
-                <img src="${data.preview_url}?${Date.now()}" 
-                     alt="Display Preview" 
-                     class="max-w-full max-h-full rounded-lg shadow-sm">
+                <div class="relative h-full">
+                    <img src="${data.preview_url}?${Date.now()}" 
+                         alt="Display Preview" 
+                         class="w-full h-full object-contain rounded-lg">
+                    <!-- Bottom Right Time Display -->
+                    <div class="absolute bottom-4 right-4 text-right">
+                        <div class="text-sm text-gray-500" id="current-time-display">--:--</div>
+                        <div class="text-lg font-bold text-bible-accent" id="chapter-verse-display">Ch:Vs</div>
+                    </div>
+                </div>
             `;
+            // Restart time display after preview update
+            updateTimeDisplay();
         } else {
             showPreviewError();
         }
@@ -485,7 +570,25 @@ function showPreviewError() {
 
 function updateDisplayMode() {
     const mode = document.getElementById('display-mode').value;
-    updateSetting('display_mode', mode);
+    const parallelSettings = document.getElementById('parallel-settings');
+    
+    // Show/hide parallel settings
+    if (mode === 'parallel') {
+        parallelSettings.classList.remove('hidden');
+        // Enable parallel mode
+        updateSetting('parallel_mode', true);
+        updateSetting('display_mode', 'time'); // Keep time mode but enable parallel
+    } else {
+        parallelSettings.classList.add('hidden');
+        // Disable parallel mode
+        updateSetting('parallel_mode', false);
+        updateSetting('display_mode', mode);
+    }
+}
+
+function updateSecondaryTranslation() {
+    const secondaryTranslation = document.getElementById('secondary-translation').value;
+    updateSetting('secondary_translation', secondaryTranslation);
 }
 
 function updateTranslation() {
@@ -562,10 +665,51 @@ function updateFont() {
     updateSetting('font', font);
 }
 
+function updateFontFamilyPreview() {
+    const fontSelect = document.getElementById('font-family');
+    const selectedFont = fontSelect.value;
+    const previewElement = document.getElementById('font-preview-sample');
+    
+    // Map font names to actual CSS font families
+    const fontMap = {
+        'default': 'Arial, sans-serif',
+        'DejaVuSans': 'DejaVu Sans, Arial, sans-serif',
+        'DejaVuSans-Bold': 'DejaVu Sans, Arial, sans-serif',
+        'Times': 'Times New Roman, serif',
+        'Georgia': 'Georgia, serif',
+        'Verdana': 'Verdana, sans-serif',
+        'Helvetica': 'Helvetica, Arial, sans-serif'
+    };
+    
+    const cssFont = fontMap[selectedFont] || selectedFont || 'Arial, sans-serif';
+    previewElement.style.fontFamily = cssFont;
+}
+
 function updateFontSizeValue(type) {
     const slider = document.getElementById(`${type}-size`);
     const display = document.getElementById(`${type}-size-value`);
-    display.textContent = slider.value;
+    display.textContent = slider.value + 'px';
+}
+
+function updateFontPreview() {
+    const titleSize = document.getElementById('title-size').value;
+    const verseSize = document.getElementById('verse-size').value;
+    const referenceSize = document.getElementById('reference-size').value;
+    
+    // Update live preview (scaled down for web display)
+    document.getElementById('preview-title').style.fontSize = (titleSize * 0.4) + 'px';
+    document.getElementById('preview-verse').style.fontSize = (verseSize * 0.4) + 'px';
+    document.getElementById('preview-reference').style.fontSize = (referenceSize * 0.4) + 'px';
+}
+
+function updateTimeDisplay() {
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    const chapter = now.getHours() || 12; // Use 12 for midnight instead of 0
+    const verse = now.getMinutes() || 1; // Use 1 for :00 instead of 0
+    
+    document.getElementById('current-time-display').textContent = timeStr;
+    document.getElementById('chapter-verse-display').textContent = `${chapter}:${verse}`;
 }
 
 function updateFontSize(sizeType, value) {
@@ -593,9 +737,12 @@ function generatePreviewDashboard() {
 }
 
 function applyAllSettings() {
+    const displayMode = document.getElementById('display-mode').value;
     const settings = {
-        display_mode: document.getElementById('display-mode').value,
+        display_mode: displayMode === 'parallel' ? 'time' : displayMode,
+        parallel_mode: displayMode === 'parallel',
         translation: document.getElementById('translation').value,
+        secondary_translation: document.getElementById('secondary-translation').value,
         font: document.getElementById('font-family').value,
         background_index: parseInt(document.getElementById('background').value),
         title_size: parseInt(document.getElementById('title-size').value),

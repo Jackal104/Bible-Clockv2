@@ -21,6 +21,8 @@ class VerseManager:
         
         # Enhanced features
         self.display_mode = 'time'  # 'time', 'date', 'random'
+        self.parallel_mode = False  # Enable parallel translation mode
+        self.secondary_translation = 'amp'  # Secondary translation for parallel mode
         self.statistics = {
             'verses_displayed': 0,
             'verses_today': 0,
@@ -220,6 +222,10 @@ class VerseManager:
         if not verse_data:
             verse_data = random.choice(self.fallback_verses)
         
+        # Add parallel translation if enabled
+        if self.parallel_mode and verse_data:
+            verse_data = self._add_parallel_translation(verse_data)
+        
         return verse_data
     
     def _get_date_based_verse(self) -> Dict:
@@ -297,6 +303,65 @@ class VerseManager:
         fallback['date_match'] = 'fallback'
         
         return fallback
+    
+    def _add_parallel_translation(self, verse_data: Dict) -> Dict:
+        """Add parallel translation to verse data."""
+        try:
+            book = verse_data.get('book')
+            chapter = verse_data.get('chapter')
+            verse = verse_data.get('verse')
+            
+            if not all([book, chapter, verse]):
+                return verse_data
+            
+            # Try to get secondary translation from API
+            secondary_verse = self._get_verse_from_api_with_translation(
+                book, chapter, verse, self.secondary_translation
+            )
+            
+            if secondary_verse:
+                verse_data['parallel_mode'] = True
+                verse_data['primary_translation'] = self.translation.upper()
+                verse_data['secondary_translation'] = self.secondary_translation.upper()
+                verse_data['secondary_text'] = secondary_verse['text']
+            
+            return verse_data
+            
+        except Exception as e:
+            self.logger.warning(f"Failed to get parallel translation: {e}")
+            return verse_data
+    
+    def _get_verse_from_api_with_translation(self, book: str, chapter: int, verse: int, translation: str) -> Optional[Dict]:
+        """Get verse from API with specific translation."""
+        if not self.api_url:
+            return None
+        
+        try:
+            url = f"{self.api_url}/{book} {chapter}:{verse}"
+            if translation != 'kjv':
+                url += f"?translation={translation}"
+            
+            response = requests.get(url, timeout=self.timeout)
+            response.raise_for_status()
+            
+            data = response.json()
+            verse_text = data.get('text', '').strip()
+            
+            if not verse_text:
+                return None
+            
+            return {
+                'reference': data.get('reference', f"{book} {chapter}:{verse}"),
+                'text': verse_text,
+                'book': book,
+                'chapter': chapter,
+                'verse': verse,
+                'translation': translation
+            }
+            
+        except Exception as e:
+            self.logger.warning(f"API request failed for {translation}: {e}")
+            return None
     
     def _get_random_verse(self) -> Dict:
         """Get a completely random verse."""

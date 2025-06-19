@@ -96,6 +96,8 @@ def create_app(verse_manager, image_generator, display_manager, service_manager,
                 'background_index': app.image_generator.current_background_index,
                 'available_backgrounds': app.image_generator.get_available_backgrounds(),
                 'available_translations': ['kjv', 'esv', 'nasb', 'amp', 'niv'],
+                'parallel_mode': getattr(app.verse_manager, 'parallel_mode', False),
+                'secondary_translation': getattr(app.verse_manager, 'secondary_translation', 'amp'),
                 'available_fonts': app.image_generator.get_available_fonts(),
                 'current_font': app.image_generator.get_current_font(),
                 'font_sizes': app.image_generator.get_font_sizes(),
@@ -124,6 +126,16 @@ def create_app(verse_manager, image_generator, display_manager, service_manager,
             if 'display_mode' in data:
                 app.verse_manager.display_mode = data['display_mode']
                 app.logger.info(f"Display mode changed to: {data['display_mode']}")
+            
+            # Update parallel mode
+            if 'parallel_mode' in data:
+                app.verse_manager.parallel_mode = data['parallel_mode']
+                app.logger.info(f"Parallel mode: {data['parallel_mode']}")
+            
+            # Update secondary translation
+            if 'secondary_translation' in data:
+                app.verse_manager.secondary_translation = data['secondary_translation']
+                app.logger.info(f"Secondary translation: {data['secondary_translation']}")
             
             # Update background
             if 'background_index' in data:
@@ -251,34 +263,76 @@ def create_app(verse_manager, image_generator, display_manager, service_manager,
         try:
             data = request.get_json()
             
-            # Create temporary settings
-            temp_verse_manager = app.verse_manager
-            temp_image_generator = app.image_generator
+            # Store original settings
+            original_translation = app.verse_manager.translation
+            original_display_mode = getattr(app.verse_manager, 'display_mode', 'time')
+            original_parallel_mode = getattr(app.verse_manager, 'parallel_mode', False)
+            original_secondary_translation = getattr(app.verse_manager, 'secondary_translation', 'amp')
+            original_background_index = app.image_generator.current_background_index
+            original_font = app.image_generator.current_font_name
+            original_font_sizes = app.image_generator.get_font_sizes()
             
-            # Apply temporary changes
-            if 'translation' in data:
-                temp_verse_manager.translation = data['translation']
-            
-            if 'background_index' in data:
-                temp_image_generator.current_background_index = data['background_index']
-            
-            if 'font' in data:
-                temp_image_generator.set_font_temporarily(data['font'])
-            
-            # Generate preview
-            verse_data = temp_verse_manager.get_current_verse()
-            image = temp_image_generator.create_verse_image(verse_data)
-            
-            # Save preview image
-            preview_path = Path('src/web_interface/static/preview.png')
-            preview_path.parent.mkdir(exist_ok=True)
-            image.save(preview_path)
-            
-            return jsonify({
-                'success': True, 
-                'preview_url': '/static/preview.png',
-                'timestamp': datetime.now().isoformat()
-            })
+            try:
+                # Apply temporary changes
+                if 'translation' in data:
+                    app.verse_manager.translation = data['translation']
+                
+                if 'display_mode' in data:
+                    app.verse_manager.display_mode = data['display_mode']
+                
+                if 'parallel_mode' in data:
+                    app.verse_manager.parallel_mode = data['parallel_mode']
+                
+                if 'secondary_translation' in data:
+                    app.verse_manager.secondary_translation = data['secondary_translation']
+                
+                if 'background_index' in data:
+                    app.image_generator.current_background_index = data['background_index']
+                
+                if 'font' in data:
+                    app.image_generator.current_font_name = data['font']
+                    app.image_generator._load_fonts()
+                
+                if 'font_sizes' in data:
+                    sizes = data['font_sizes']
+                    app.image_generator.set_font_sizes(
+                        title_size=sizes.get('title_size'),
+                        verse_size=sizes.get('verse_size'),
+                        reference_size=sizes.get('reference_size')
+                    )
+                
+                # Generate preview
+                verse_data = app.verse_manager.get_current_verse()
+                image = app.image_generator.create_verse_image(verse_data)
+                
+                # Save preview image
+                preview_path = Path('src/web_interface/static/preview.png')
+                preview_path.parent.mkdir(exist_ok=True)
+                image.save(preview_path)
+                
+                # Return success with metadata
+                return jsonify({
+                    'success': True, 
+                    'preview_url': f'/static/preview.png?t={datetime.now().timestamp()}',
+                    'timestamp': datetime.now().isoformat(),
+                    'background_name': f"Background {app.image_generator.current_background_index + 1}",
+                    'font_name': app.image_generator.current_font_name,
+                    'verse_reference': verse_data.get('reference', 'Unknown')
+                })
+                
+            finally:
+                # Restore original settings
+                app.verse_manager.translation = original_translation
+                app.verse_manager.display_mode = original_display_mode
+                app.verse_manager.parallel_mode = original_parallel_mode
+                app.verse_manager.secondary_translation = original_secondary_translation
+                app.image_generator.current_background_index = original_background_index
+                app.image_generator.current_font_name = original_font
+                app.image_generator.set_font_sizes(
+                    title_size=original_font_sizes['title_size'],
+                    verse_size=original_font_sizes['verse_size'],
+                    reference_size=original_font_sizes['reference_size']
+                )
             
         except Exception as e:
             app.logger.error(f"Preview error: {e}")

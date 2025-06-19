@@ -142,11 +142,14 @@ class ImageGenerator:
         # Check for different verse types
         is_summary = verse_data.get('is_summary', False)
         is_date_event = verse_data.get('is_date_event', False)
+        is_parallel = verse_data.get('parallel_mode', False)
         
         if is_date_event:
             self._draw_date_event(draw, verse_data, margin, content_width)
         elif is_summary:
             self._draw_book_summary(draw, verse_data, margin, content_width)
+        elif is_parallel:
+            self._draw_parallel_verse(draw, verse_data, margin, content_width)
         else:
             self._draw_verse(draw, verse_data, margin, content_width)
         
@@ -486,3 +489,72 @@ class ImageGenerator:
                         line_x = (self.width - line_width) // 2
                         draw.text((line_x, y_position), line, fill=96, font=self.reference_font)
                         y_position += line_bbox[3] - line_bbox[1] + 15
+    
+    def _draw_parallel_verse(self, draw: ImageDraw.Draw, verse_data: Dict, margin: int, content_width: int):
+        """Draw verse with parallel translations side by side."""
+        y_position = margin
+        
+        # Draw reference at top (centered)
+        reference = verse_data['reference']
+        if self.reference_font:
+            ref_bbox = draw.textbbox((0, 0), reference, font=self.reference_font)
+            ref_width = ref_bbox[2] - ref_bbox[0]
+            ref_x = (self.width - ref_width) // 2
+            draw.text((ref_x, y_position), reference, fill=0, font=self.reference_font)
+            y_position += ref_bbox[3] - ref_bbox[1] + 30
+        
+        # Draw translation labels
+        primary_label = verse_data.get('primary_translation', 'KJV')
+        secondary_label = verse_data.get('secondary_translation', 'AMP')
+        
+        if self.reference_font:
+            # Left label
+            left_bbox = draw.textbbox((0, 0), primary_label, font=self.reference_font)
+            left_x = margin + (content_width // 4) - ((left_bbox[2] - left_bbox[0]) // 2)
+            draw.text((left_x, y_position), primary_label, fill=64, font=self.reference_font)
+            
+            # Right label
+            right_bbox = draw.textbbox((0, 0), secondary_label, font=self.reference_font)
+            right_x = margin + (3 * content_width // 4) - ((right_bbox[2] - right_bbox[0]) // 2)
+            draw.text((right_x, y_position), secondary_label, fill=64, font=self.reference_font)
+            
+            y_position += left_bbox[3] - left_bbox[1] + 30
+        
+        # Split content into two columns
+        column_width = (content_width - 40) // 2  # 40px gap between columns
+        left_margin = margin
+        right_margin = margin + column_width + 40
+        
+        # Draw primary translation (left)
+        primary_text = verse_data['text']
+        wrapped_primary = self._wrap_text(primary_text, column_width, self.verse_font)
+        
+        for line in wrapped_primary:
+            if self.verse_font:
+                line_bbox = draw.textbbox((0, 0), line, font=self.verse_font)
+                draw.text((left_margin, y_position), line, fill=0, font=self.verse_font)
+                y_position += line_bbox[3] - line_bbox[1] + 15
+        
+        # Reset y_position for secondary translation
+        y_position = margin
+        if self.reference_font:
+            ref_bbox = draw.textbbox((0, 0), reference, font=self.reference_font)
+            y_position += ref_bbox[3] - ref_bbox[1] + 30
+            left_bbox = draw.textbbox((0, 0), primary_label, font=self.reference_font)
+            y_position += left_bbox[3] - left_bbox[1] + 30
+        
+        # Draw secondary translation (right)
+        secondary_text = verse_data.get('secondary_text', 'Translation not available')
+        wrapped_secondary = self._wrap_text(secondary_text, column_width, self.verse_font)
+        
+        for line in wrapped_secondary:
+            if self.verse_font:
+                line_bbox = draw.textbbox((0, 0), line, font=self.verse_font)
+                draw.text((right_margin, y_position), line, fill=0, font=self.verse_font)
+                y_position += line_bbox[3] - line_bbox[1] + 15
+        
+        # Add a vertical separator line
+        separator_x = margin + column_width + 20
+        separator_start_y = margin + 80
+        separator_end_y = y_position - 20
+        draw.line([(separator_x, separator_start_y), (separator_x, separator_end_y)], fill=128, width=1)
