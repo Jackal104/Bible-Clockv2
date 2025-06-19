@@ -97,6 +97,7 @@ def create_app(verse_manager, image_generator, display_manager, service_manager,
                 'available_translations': ['kjv', 'esv', 'nasb', 'amp', 'niv'],
                 'available_fonts': app.image_generator.get_available_fonts(),
                 'current_font': app.image_generator.get_current_font(),
+                'font_sizes': app.image_generator.get_font_sizes(),
                 'voice_enabled': getattr(app.verse_manager, 'voice_enabled', False),
                 'web_enabled': True,
                 'auto_refresh': int(os.getenv('FORCE_REFRESH_INTERVAL', '60'))
@@ -132,6 +133,15 @@ def create_app(verse_manager, image_generator, display_manager, service_manager,
             if 'font' in data:
                 app.image_generator.set_font(data['font'])
                 app.logger.info(f"Font changed to: {data['font']}")
+            
+            # Update font sizes
+            if any(key in data for key in ['title_size', 'verse_size', 'reference_size']):
+                app.image_generator.set_font_sizes(
+                    title_size=data.get('title_size'),
+                    verse_size=data.get('verse_size'),
+                    reference_size=data.get('reference_size')
+                )
+                app.logger.info("Font sizes updated")
             
             # Force display update
             if data.get('update_display', False):
@@ -192,6 +202,48 @@ def create_app(verse_manager, image_generator, display_manager, service_manager,
             app.logger.error(f"Refresh error: {e}")
             return jsonify({'success': False, 'error': str(e)}), 500
     
+    @app.route('/api/background/cycle', methods=['POST'])
+    def cycle_background():
+        """Cycle to next background."""
+        try:
+            app.image_generator.cycle_background()
+            
+            # Update display if requested
+            if request.get_json() and request.get_json().get('update_display', False):
+                verse_data = app.verse_manager.get_current_verse()
+                image = app.image_generator.create_verse_image(verse_data)
+                app.display_manager.display_image(image, force_refresh=True)
+            
+            return jsonify({
+                'success': True, 
+                'message': 'Background cycled',
+                'current_background': app.image_generator.get_current_background_info()
+            })
+        except Exception as e:
+            app.logger.error(f"Background cycle error: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    @app.route('/api/background/randomize', methods=['POST'])
+    def randomize_background():
+        """Randomize background."""
+        try:
+            app.image_generator.randomize_background()
+            
+            # Update display if requested
+            if request.get_json() and request.get_json().get('update_display', False):
+                verse_data = app.verse_manager.get_current_verse()
+                image = app.image_generator.create_verse_image(verse_data)
+                app.display_manager.display_image(image, force_refresh=True)
+            
+            return jsonify({
+                'success': True, 
+                'message': 'Background randomized',
+                'current_background': app.image_generator.get_current_background_info()
+            })
+        except Exception as e:
+            app.logger.error(f"Background randomize error: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
     @app.route('/api/preview', methods=['POST'])
     def preview_settings():
         """Preview settings without applying to display."""
@@ -217,7 +269,7 @@ def create_app(verse_manager, image_generator, display_manager, service_manager,
             image = temp_image_generator.create_verse_image(verse_data)
             
             # Save preview image
-            preview_path = Path('static/preview.png')
+            preview_path = Path('src/web_interface/static/preview.png')
             preview_path.parent.mkdir(exist_ok=True)
             image.save(preview_path)
             

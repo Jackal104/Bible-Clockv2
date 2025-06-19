@@ -20,6 +20,12 @@ class ImageGenerator:
         # Enhanced font management
         self.available_fonts = {}
         self.current_font_name = 'default'
+        
+        # Font sizes (configurable)
+        self.title_size = int(os.getenv('TITLE_FONT_SIZE', '48'))
+        self.verse_size = int(os.getenv('VERSE_FONT_SIZE', '36'))
+        self.reference_size = int(os.getenv('REFERENCE_FONT_SIZE', '32'))
+        
         self._discover_fonts()
         
         # Load fonts
@@ -36,10 +42,10 @@ class ImageGenerator:
         font_dir = Path('data/fonts')
         
         try:
-            # Try to load DejaVu fonts
-            self.title_font = ImageFont.truetype(str(font_dir / 'DejaVuSans-Bold.ttf'), 48)
-            self.verse_font = ImageFont.truetype(str(font_dir / 'DejaVuSans.ttf'), 36)
-            self.reference_font = ImageFont.truetype(str(font_dir / 'DejaVuSans-Bold.ttf'), 32)
+            # Try to load DejaVu fonts with configurable sizes
+            self.title_font = ImageFont.truetype(str(font_dir / 'DejaVuSans-Bold.ttf'), self.title_size)
+            self.verse_font = ImageFont.truetype(str(font_dir / 'DejaVuSans.ttf'), self.verse_size)
+            self.reference_font = ImageFont.truetype(str(font_dir / 'DejaVuSans-Bold.ttf'), self.reference_size)
             self.logger.info("Fonts loaded successfully")
         except Exception as e:
             self.logger.warning(f"Failed to load custom fonts: {e}")
@@ -342,6 +348,65 @@ class ImageGenerator:
             'total_count': len(self.backgrounds),
             'backgrounds': self.get_available_backgrounds()
         }
+    
+    def get_current_background_info(self) -> Dict:
+        """Get current background information."""
+        return {
+            'index': self.current_background_index,
+            'name': f"Background {self.current_background_index + 1}",
+            'total': len(self.backgrounds)
+        }
+    
+    def get_available_fonts(self) -> List[Dict]:
+        """Get available fonts with metadata."""
+        return [
+            {
+                'name': name,
+                'display_name': name.replace('_', ' ').title() if name != 'default' else 'Default',
+                'path': path,
+                'current': name == self.current_font_name
+            }
+            for name, path in self.available_fonts.items()
+        ]
+    
+    def get_current_font(self) -> str:
+        """Get current font name."""
+        return self.current_font_name
+    
+    def set_font_sizes(self, title_size: int = None, verse_size: int = None, reference_size: int = None):
+        """Set font sizes."""
+        if title_size is not None:
+            self.title_size = max(12, min(72, title_size))  # Clamp between 12-72
+        if verse_size is not None:
+            self.verse_size = max(12, min(60, verse_size))  # Clamp between 12-60
+        if reference_size is not None:
+            self.reference_size = max(12, min(48, reference_size))  # Clamp between 12-48
+        
+        # Reload fonts with new sizes
+        self._load_fonts()
+        self.logger.info(f"Font sizes updated - Title: {self.title_size}, Verse: {self.verse_size}, Reference: {self.reference_size}")
+    
+    def get_font_sizes(self) -> Dict[str, int]:
+        """Get current font sizes."""
+        return {
+            'title_size': self.title_size,
+            'verse_size': self.verse_size,
+            'reference_size': self.reference_size
+        }
+    
+    def cycle_background(self):
+        """Cycle to next background."""
+        self.current_background_index = (self.current_background_index + 1) % len(self.backgrounds)
+        self.logger.info(f"Background cycled to index: {self.current_background_index}")
+    
+    def randomize_background(self):
+        """Set random background."""
+        if len(self.backgrounds) > 1:
+            # Ensure we don't select the same background
+            old_index = self.current_background_index
+            while self.current_background_index == old_index:
+                self.current_background_index = random.randint(0, len(self.backgrounds) - 1)
+            self.logger.info(f"Background randomized to index: {self.current_background_index}")
     
     def get_font_info(self) -> Dict:
         """Get detailed font information."""
