@@ -174,10 +174,8 @@
                         <div id="parallel-settings" class="hidden">
                             <label class="block text-sm font-medium text-gray-700 mb-2">Secondary Translation</label>
                             <select id="secondary-translation" class="form-select" onchange="updateSecondaryTranslation()">
-                                <option value="esv">English Standard Version (ESV)</option>
-                                <option value="nasb">New American Standard Bible (NASB)</option>
-                                <option value="niv">New International Version (NIV)</option>
-                                <option value="amp">Amplified Bible (AMP)</option>
+                                <option value="web">World English Bible (WEB)</option>
+                                <option value="oeb">Open English Bible (OEB)</option>
                                 <option value="kjv">King James Version (KJV)</option>
                             </select>
                         </div>
@@ -187,10 +185,8 @@
                             <label class="block text-sm font-medium text-gray-700 mb-2">Bible Translation</label>
                             <select id="translation" class="form-select" onchange="updateTranslation()">
                                 <option value="kjv">King James Version (KJV)</option>
-                                <option value="esv">English Standard Version (ESV)</option>
-                                <option value="nasb">New American Standard Bible (NASB)</option>
-                                <option value="niv">New International Version (NIV)</option>
-                                <option value="amp">Amplified Bible (AMP)</option>
+                                <option value="web">World English Bible (WEB)</option>
+                                <option value="oeb">Open English Bible (OEB)</option>
                             </select>
                         </div>
 
@@ -529,8 +525,17 @@ function updateTranslation() {
 }
 
 function updateBackground() {
-    const backgroundIndex = parseInt(document.getElementById('background').value);
-    updateSetting('background_index', backgroundIndex);
+    try {
+        const backgroundIndex = parseInt(document.getElementById('background').value);
+        if (isNaN(backgroundIndex)) {
+            showError('Invalid background selection');
+            return;
+        }
+        updateSetting('background_index', backgroundIndex);
+        setTimeout(updateUnifiedPreview, 500);
+    } catch (error) {
+        showError('Failed to update background: ' + error.message);
+    }
 }
 
 function updateSetting(key, value) {
@@ -593,8 +598,25 @@ function randomizeBackground() {
 }
 
 function updateFont() {
-    const font = document.getElementById('font-family').value;
-    updateSetting('font', font);
+    try {
+        const font = document.getElementById('font-family').value;
+        if (!font) {
+            showError('Please select a font');
+            return;
+        }
+        updateSetting('font', font);
+        setTimeout(updateUnifiedPreview, 500);
+        
+        // Update font preview sample
+        const fontPreviewSample = document.getElementById('font-preview-sample');
+        if (fontPreviewSample && font !== 'default') {
+            fontPreviewSample.style.fontFamily = font + ', serif';
+        } else if (fontPreviewSample) {
+            fontPreviewSample.style.fontFamily = 'inherit';
+        }
+    } catch (error) {
+        showError('Failed to update font: ' + error.message);
+    }
 }
 
 
@@ -654,7 +676,11 @@ function updateUnifiedPreview() {
             showUnifiedPreviewError();
         }
     })
-    .catch(error => showUnifiedPreviewError());
+    .catch(error => {
+        console.error('Preview generation error:', error);
+        showUnifiedPreviewError();
+        showError('Failed to generate preview');
+    });
 }
 
 function showUnifiedPreviewError() {
@@ -791,13 +817,35 @@ function stopAutoRefresh() {
 }
 
 function showSuccess(message) {
-    // Could implement toast notifications here
     console.log('Success:', message);
+    showToast(message, 'success');
 }
 
 function showError(message) {
-    // Could implement toast notifications here
     console.error('Error:', message);
+    showToast(message, 'error');
+}
+
+function showToast(message, type) {
+    // Remove existing toasts
+    const existingToasts = document.querySelectorAll('.toast');
+    existingToasts.forEach(toast => toast.remove());
+    
+    // Create new toast
+    const toast = document.createElement('div');
+    toast.className = `toast fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 ${
+        type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+    }`;
+    toast.textContent = message;
+    
+    document.body.appendChild(toast);
+    
+    // Auto remove after 3 seconds
+    setTimeout(() => {
+        if (toast.parentNode) {
+            toast.remove();
+        }
+    }, 3000);
 }
 </script>
 {% endblock %}

@@ -22,7 +22,7 @@ class VerseManager:
         # Enhanced features
         self.display_mode = 'time'  # 'time', 'date', 'random'
         self.parallel_mode = False  # Enable parallel translation mode
-        self.secondary_translation = 'amp'  # Secondary translation for parallel mode
+        self.secondary_translation = 'web'  # Secondary translation for parallel mode
         self.statistics = {
             'verses_displayed': 0,
             'verses_today': 0,
