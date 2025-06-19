@@ -206,17 +206,19 @@
                         <div id="parallel-settings" class="hidden">
                             <label class="block text-sm font-medium text-gray-700 mb-2">Secondary Translation</label>
                             <select id="secondary-translation" class="form-select" onchange="updateSecondaryTranslation()">
-                                <option value="web">World English Bible (WEB)</option>
-                                <option value="kjv">King James Version (KJV)</option>
+                                <!-- Options populated dynamically to prevent duplicates -->
                             </select>
                         </div>
 
-                        <!-- Translation -->
+                        <!-- Primary Translation -->
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Bible Translation</label>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Primary Bible Translation</label>
                             <select id="translation" class="form-select" onchange="updateTranslation()">
                                 <option value="kjv">King James Version (KJV)</option>
                                 <option value="web">World English Bible (WEB)</option>
+                                <option value="asv">American Standard Version (ASV)</option>
+                                <option value="bbe">Bible in Basic English (BBE)</option>
+                                <option value="ylt">Young's Literal Translation (YLT)</option>
                             </select>
                         </div>
 
@@ -472,6 +474,9 @@ function updateSettingsUI(settings) {
     }
     
     document.getElementById('translation').value = settings.translation || 'kjv';
+    
+    // Update secondary translation options and set value
+    updateSecondaryTranslationOptions();
     document.getElementById('secondary-translation').value = settings.secondary_translation || 'web';
     
     // Update background options
@@ -552,9 +557,48 @@ function updateSecondaryTranslation() {
     setTimeout(updateUnifiedPreview, 300);
 }
 
+function updateSecondaryTranslationOptions() {
+    const primaryTranslation = document.getElementById('translation').value;
+    const secondarySelect = document.getElementById('secondary-translation');
+    const currentSecondary = secondarySelect.value;
+    
+    // All available translations (only working ones)
+    const allTranslations = [
+        { value: 'kjv', label: 'King James Version (KJV)' },
+        { value: 'web', label: 'World English Bible (WEB)' },
+        { value: 'asv', label: 'American Standard Version (ASV)' },
+        { value: 'bbe', label: 'Bible in Basic English (BBE)' },
+        { value: 'ylt', label: 'Young\'s Literal Translation (YLT)' }
+    ];
+    
+    // Clear current options
+    secondarySelect.innerHTML = '';
+    
+    // Add options except the primary translation
+    allTranslations.forEach(trans => {
+        if (trans.value !== primaryTranslation) {
+            const option = document.createElement('option');
+            option.value = trans.value;
+            option.textContent = trans.label;
+            option.selected = trans.value === currentSecondary;
+            secondarySelect.appendChild(option);
+        }
+    });
+    
+    // If current secondary is same as primary, select the first available option
+    if (currentSecondary === primaryTranslation && secondarySelect.options.length > 0) {
+        secondarySelect.value = secondarySelect.options[0].value;
+        updateSecondaryTranslation();
+    }
+}
+
 function updateTranslation() {
     const translation = document.getElementById('translation').value;
     updateSetting('translation', translation);
+    
+    // Update secondary translation options to prevent duplicates
+    updateSecondaryTranslationOptions();
+    
     setTimeout(updateUnifiedPreview, 300);
 }
 
@@ -612,10 +656,14 @@ function updateSetting(key, value) {
                 setTimeout(loadCurrentVerse, 500);
             }
         } else {
-            showError('Failed to update settings');
+            console.error('Settings update failed:', data);
+            showError('Failed to update settings: ' + (data.error || 'Server error'));
         }
     })
-    .catch(error => showError('Network error updating settings'));
+    .catch(error => {
+        console.error('Settings network error:', error);
+        showError('Network error: ' + error.message);
+    });
 }
 
 function cycleBackground() {
