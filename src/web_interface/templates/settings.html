@@ -719,11 +719,18 @@ function generatePreview() {
     `;
     
     // Get current form values
+    const mode = document.getElementById('display-mode').value;
     const previewSettings = {
-        display_mode: document.getElementById('display-mode').value,
+        display_mode: mode === 'parallel' ? 'time' : mode,  // Convert parallel to time
+        parallel_mode: mode === 'parallel',                  // Add parallel mode flag
         translation: document.getElementById('translation').value,
         font: document.getElementById('font-family').value
     };
+    
+    // Add secondary translation if parallel mode is enabled
+    if (mode === 'parallel') {
+        previewSettings.secondary_translation = document.getElementById('secondary-translation').value;
+    }
     
     fetch('/api/preview', {
         method: 'POST',
