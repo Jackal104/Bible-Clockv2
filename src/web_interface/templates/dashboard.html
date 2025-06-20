@@ -66,11 +66,26 @@
             </div>
         </div>
 
+        <!-- Hardware Mode -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div id="hardware-mode-icon" class="p-2 bg-purple-100 rounded-lg">
+                    <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <h4 class="text-sm font-medium text-gray-500">Mode</h4>
+                    <p class="text-2xl font-semibold text-gray-900" id="hardware-mode">--</p>
+                </div>
+            </div>
+        </div>
+
         <!-- Verses Today -->
         <div class="bg-white rounded-lg shadow p-6">
             <div class="flex items-center">
-                <div class="p-2 bg-purple-100 rounded-lg">
-                    <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div class="p-2 bg-indigo-100 rounded-lg">
+                    <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
                     </svg>
                 </div>
@@ -111,6 +126,18 @@
                                 <span class="text-sm font-medium text-gray-700">System Status</span>
                                 <div class="text-xs text-gray-500" id="status-text">Online</div>
                             </div>
+                        </div>
+                        
+                        <!-- Volume Control -->
+                        <div class="flex items-center bg-gray-50 px-4 py-2 rounded-lg">
+                            <svg class="w-4 h-4 text-gray-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 14.142M6.343 6.343a9 9 0 000 12.728m2.828-2.828a5 5 0 000-7.072M9 21a3.001 3.001 0 006 0l-6 0z"></path>
+                            </svg>
+                            <span class="text-sm font-medium text-gray-700 mr-2">Volume:</span>
+                            <input type="range" id="volume-slider" min="0" max="100" value="80" 
+                                   class="w-20 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+                                   onchange="updateVolume(this.value)" oninput="updateVolumeDisplay(this.value)">
+                            <span id="volume-display" class="text-sm text-gray-600 ml-2 w-8">80%</span>
                         </div>
                         
                         <!-- Control Buttons -->
@@ -342,6 +369,7 @@ document.addEventListener('DOMContentLoaded', function() {
     loadCurrentVerse();
     loadSystemStatus();
     loadSettings();
+    loadCurrentVolume();
     startAutoRefresh();
     
     // Start verse reference display updates
@@ -433,6 +461,26 @@ function updateSystemStatus(status) {
     document.getElementById('cpu-temperature').textContent = 
         status.system && status.system.cpu_temperature ? status.system.cpu_temperature + '°C' : '--°C';
     document.getElementById('verses-today').textContent = status.verses_today || '0';
+    
+    // Update hardware mode
+    const hardwareModeElement = document.getElementById('hardware-mode');
+    const hardwareModeIcon = document.getElementById('hardware-mode-icon');
+    
+    if (hardwareModeElement) {
+        const mode = status.hardware_mode || (status.simulation_mode ? 'Simulation' : 'Hardware');
+        hardwareModeElement.textContent = mode;
+        
+        // Update icon color based on mode
+        if (hardwareModeIcon) {
+            if (mode === 'Simulation') {
+                hardwareModeIcon.className = 'p-2 bg-orange-100 rounded-lg';
+                hardwareModeIcon.querySelector('svg').className = 'w-6 h-6 text-orange-600';
+            } else {
+                hardwareModeIcon.className = 'p-2 bg-green-100 rounded-lg';
+                hardwareModeIcon.querySelector('svg').className = 'w-6 h-6 text-green-600';
+            }
+        }
+    }
 }
 
 function loadSettings() {
@@ -1076,6 +1124,53 @@ function refreshPage() {
     setTimeout(() => {
         window.location.reload();
     }, 500);
+}
+
+// Volume Control Functions
+function updateVolumeDisplay(value) {
+    document.getElementById('volume-display').textContent = value + '%';
+}
+
+function updateVolume(value) {
+    const volumeLevel = parseInt(value) / 100; // Convert to 0.0-1.0 range
+    
+    const data = {
+        voice_volume: volumeLevel
+    };
+    
+    fetch('/api/voice/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            showSuccess(`Volume set to ${value}%`);
+        } else {
+            showError('Failed to update volume: ' + (result.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Volume update error:', error);
+        showError('Failed to update volume');
+    });
+}
+
+// Load current volume on page load
+function loadCurrentVolume() {
+    fetch('/api/voice/status')
+        .then(response => response.json())
+        .then(result => {
+            if (result.success && result.data.voice_volume !== undefined) {
+                const volumePercent = Math.round(result.data.voice_volume * 100);
+                document.getElementById('volume-slider').value = volumePercent;
+                document.getElementById('volume-display').textContent = volumePercent + '%';
+            }
+        })
+        .catch(error => {
+            console.error('Failed to load current volume:', error);
+        });
 }
 </script>
 {% endblock %}

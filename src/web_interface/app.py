@@ -67,11 +67,16 @@ def create_app(verse_manager, image_generator, display_manager, service_manager,
     def get_status():
         """Get comprehensive system status."""
         try:
+            # Check simulation mode from display manager
+            simulation_mode = getattr(app.display_manager, 'simulation_mode', False)
+            
             status = {
                 'timestamp': datetime.now().isoformat(),
                 'translation': app.verse_manager.translation,
                 'api_url': app.verse_manager.api_url,
                 'display_mode': getattr(app.verse_manager, 'display_mode', 'time'),
+                'simulation_mode': simulation_mode,
+                'hardware_mode': 'Simulation' if simulation_mode else 'Hardware',
                 'current_background': app.image_generator.get_current_background_info(),
                 'verses_today': getattr(app.verse_manager, 'statistics', {}).get('verses_today', 0),
                 'system': {
