@@ -23,6 +23,7 @@ class VerseManager:
         self.display_mode = 'time'  # 'time', 'date', 'random'
         self.parallel_mode = False  # Enable parallel translation mode
         self.secondary_translation = 'web'  # Secondary translation for parallel mode
+        self.time_format = '12'  # '12' for 12-hour format, '24' for 24-hour format
         self.statistics = {
             'verses_displayed': 0,
             'verses_today': 0,
@@ -211,17 +212,31 @@ class VerseManager:
     def _get_time_based_verse(self) -> Dict:
         """Time-based verse logic: HH:MM = Chapter:Verse, minute 00 = book summary."""
         now = datetime.now()
-        hour = now.hour
+        hour_24 = now.hour
         minute = now.minute
         
         # At minute 00, show a book summary
         if minute == 0:
             return self._get_random_book_summary()
         
-        # Map 24-hour time to chapter:
-        # 00:XX = Chapter 24 (midnight hour)
-        # 01:XX = Chapter 1, 02:XX = Chapter 2, etc.
-        chapter = hour if hour > 0 else 24
+        # Determine chapter based on time format setting
+        if self.time_format == '12':
+            # 12-hour format mapping:
+            # 00:XX (12:XX AM) = Chapter 12
+            # 01:XX (1:XX AM) = Chapter 1, 02:XX (2:XX AM) = Chapter 2, etc.
+            # 12:XX (12:XX PM) = Chapter 12  
+            # 13:XX (1:XX PM) = Chapter 1, 14:XX (2:XX PM) = Chapter 2, etc.
+            if hour_24 == 0:
+                chapter = 12  # 12:XX AM = Chapter 12
+            elif hour_24 <= 12:
+                chapter = hour_24  # 1:XX AM to 12:XX PM = Chapter 1-12
+            else:
+                chapter = hour_24 - 12  # 1:XX PM to 11:XX PM = Chapter 1-11
+        else:  # 24-hour format
+            # 24-hour format mapping:
+            # 00:XX = Chapter 24, 01:XX = Chapter 1, etc.
+            chapter = hour_24 if hour_24 > 0 else 24
+        
         verse = minute
         
         verse_data = self._get_verse_from_api(chapter, verse)

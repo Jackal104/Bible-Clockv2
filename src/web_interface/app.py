@@ -98,6 +98,7 @@ def create_app(verse_manager, image_generator, display_manager, service_manager,
             settings = {
                 'translation': app.verse_manager.translation,
                 'display_mode': getattr(app.verse_manager, 'display_mode', 'time'),
+                'time_format': getattr(app.verse_manager, 'time_format', '12'),
                 'background_index': app.image_generator.current_background_index,
                 'available_backgrounds': app.image_generator.get_available_backgrounds(),
                 'available_translations': ['kjv', 'web', 'asv', 'bbe', 'ylt'],
@@ -131,6 +132,11 @@ def create_app(verse_manager, image_generator, display_manager, service_manager,
             if 'display_mode' in data:
                 app.verse_manager.display_mode = data['display_mode']
                 app.logger.info(f"Display mode changed to: {data['display_mode']}")
+            
+            # Update time format
+            if 'time_format' in data:
+                app.verse_manager.time_format = data['time_format']
+                app.logger.info(f"Time format changed to: {data['time_format']}")
             
             # Update parallel mode
             if 'parallel_mode' in data:

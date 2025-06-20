@@ -29,6 +29,16 @@
                     <p class="text-sm text-gray-500 mt-1">Choose how verses are selected for display</p>
                 </div>
 
+                <!-- Time Format -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Time Format</label>
+                    <select id="time-format" class="form-select" onchange="updateSetting('time_format')">
+                        <option value="12">12-hour format (12:40 AM = Chapter 12:40)</option>
+                        <option value="24">24-hour format (00:40 = Chapter 24:40)</option>
+                    </select>
+                    <p class="text-sm text-gray-500 mt-1">Choose how time maps to chapter:verse in time mode</p>
+                </div>
+
                 <!-- Primary Translation -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Primary Bible Translation</label>
@@ -369,6 +379,7 @@ function populateSettingsForm(settings) {
         document.getElementById('parallel-settings').classList.add('hidden');
     }
     
+    document.getElementById('time-format').value = settings.time_format || '12';
     document.getElementById('translation').value = settings.translation || 'kjv';
     document.getElementById('auto-refresh').value = settings.auto_refresh || '60';
     document.getElementById('voice-enabled').checked = settings.voice_enabled || false;
@@ -668,7 +679,7 @@ function updateSetting(key, valueOverride = null) {
     data[key] = value;
     
     // Force display update for visual changes (background, font, etc.)
-    if (['background_index', 'font', 'verse_size', 'reference_size'].includes(key)) {
+    if (['background_index', 'font', 'verse_size', 'reference_size', 'time_format'].includes(key)) {
         data.update_display = true;
     }
     
