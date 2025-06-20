@@ -92,26 +92,24 @@ class VerseManager:
     
     def _populate_available_books(self):
         """Populate the list of available books from local KJV data."""
-        if self.kjv_bible:
-            self.available_books = list(self.kjv_bible.keys())
-        else:
-            # Fallback list of common Bible books
-            self.available_books = [
-                'Genesis', 'Exodus', 'Leviticus', 'Numbers', 'Deuteronomy',
-                'Joshua', 'Judges', 'Ruth', '1 Samuel', '2 Samuel',
-                '1 Kings', '2 Kings', '1 Chronicles', '2 Chronicles',
-                'Ezra', 'Nehemiah', 'Esther', 'Job', 'Psalms', 'Proverbs',
-                'Ecclesiastes', 'Song of Solomon', 'Isaiah', 'Jeremiah',
-                'Lamentations', 'Ezekiel', 'Daniel', 'Hosea', 'Joel',
-                'Amos', 'Obadiah', 'Jonah', 'Micah', 'Nahum', 'Habakkuk',
-                'Zephaniah', 'Haggai', 'Zechariah', 'Malachi',
-                'Matthew', 'Mark', 'Luke', 'John', 'Acts', 'Romans',
-                '1 Corinthians', '2 Corinthians', 'Galatians', 'Ephesians',
-                'Philippians', 'Colossians', '1 Thessalonians', '2 Thessalonians',
-                '1 Timothy', '2 Timothy', 'Titus', 'Philemon', 'Hebrews',
-                'James', '1 Peter', '2 Peter', '1 John', '2 John', '3 John',
-                'Jude', 'Revelation'
-            ]
+        # Always use the full list of Bible books for time-based calculations
+        # Local KJV data is used for actual verse text when available
+        self.available_books = [
+            'Genesis', 'Exodus', 'Leviticus', 'Numbers', 'Deuteronomy',
+            'Joshua', 'Judges', 'Ruth', '1 Samuel', '2 Samuel',
+            '1 Kings', '2 Kings', '1 Chronicles', '2 Chronicles',
+            'Ezra', 'Nehemiah', 'Esther', 'Job', 'Psalms', 'Proverbs',
+            'Ecclesiastes', 'Song of Solomon', 'Isaiah', 'Jeremiah',
+            'Lamentations', 'Ezekiel', 'Daniel', 'Hosea', 'Joel',
+            'Amos', 'Obadiah', 'Jonah', 'Micah', 'Nahum', 'Habakkuk',
+            'Zephaniah', 'Haggai', 'Zechariah', 'Malachi',
+            'Matthew', 'Mark', 'Luke', 'John', 'Acts', 'Romans',
+            '1 Corinthians', '2 Corinthians', 'Galatians', 'Ephesians',
+            'Philippians', 'Colossians', '1 Thessalonians', '2 Thessalonians',
+            '1 Timothy', '2 Timothy', 'Titus', 'Philemon', 'Hebrews',
+            'James', '1 Peter', '2 Peter', '1 John', '2 John', '3 John',
+            'Jude', 'Revelation'
+        ]
         
         self.logger.info(f"Available books: {len(self.available_books)}")
     
@@ -121,13 +119,15 @@ class VerseManager:
         
         for book in self.available_books:
             if self.kjv_bible and book in self.kjv_bible:
-                # Check local KJV data
+                # Check local KJV data first
                 book_data = self.kjv_bible[book]
                 if str(chapter_num) in book_data:
                     books_with_chapter.append(book)
+                # If not in local data, use estimates (local data is incomplete)
+                elif self._book_likely_has_chapter(book, chapter_num):
+                    books_with_chapter.append(book)
             else:
                 # For books not in local data, make educated guesses
-                # This is a fallback when KJV data isn't available
                 if self._book_likely_has_chapter(book, chapter_num):
                     books_with_chapter.append(book)
         

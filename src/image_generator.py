@@ -187,9 +187,16 @@ class ImageGenerator:
         # Convert overlay to grayscale for e-ink
         overlay_gray = overlay.convert('L')
         
-        # Create a mask for blending
-        mask = Image.new('L', (self.width, self.height), 128)
-        result = Image.composite(overlay_gray, background, mask)
+        # Create a proper mask based on alpha channel
+        # Where text exists (alpha > 0), use the text; elsewhere use background
+        alpha_channel = overlay.split()[-1]  # Get alpha channel
+        
+        # Convert alpha to proper mask: 255 where text exists, 0 where transparent
+        mask = alpha_channel.point(lambda x: 255 if x > 0 else 0)
+        
+        # Use paste with mask to preserve background where there's no text
+        result = background.copy()
+        result.paste(overlay_gray, mask=mask)
         
         return result
     
