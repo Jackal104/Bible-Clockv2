@@ -18,6 +18,7 @@ class DisplayManager:
         self.width = int(os.getenv('DISPLAY_WIDTH', '1872'))
         self.height = int(os.getenv('DISPLAY_HEIGHT', '1404'))
         self.rotation = int(os.getenv('DISPLAY_ROTATION', '0'))
+        self.vcom_voltage = float(os.getenv('DISPLAY_VCOM', '-1.21'))
         self.force_refresh_interval = int(os.getenv('FORCE_REFRESH_INTERVAL', '60'))
         
         self.last_image_hash = None
@@ -34,7 +35,7 @@ class DisplayManager:
             from IT8951.display import AutoEPDDisplay
             
             self.display_device = AutoEPDDisplay(
-                vcom=-2.06,  # Adjust based on your display
+                vcom=self.vcom_voltage,  # VCOM voltage from display ribbon
                 rotate=self.rotation,
                 spi_hz=24000000
             )
