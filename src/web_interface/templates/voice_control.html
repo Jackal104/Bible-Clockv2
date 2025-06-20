@@ -296,6 +296,53 @@
                             <span class="slider"></span>
                         </label>
                     </div>
+                    
+                    <hr class="my-4">
+                    <h5 class="text-sm font-medium text-gray-700 mb-3">Audio Controls</h5>
+                    
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <label class="text-sm font-medium text-gray-700">Audio Input (Microphone)</label>
+                            <p class="text-sm text-gray-500">Enable voice recognition</p>
+                        </div>
+                        <label class="toggle">
+                            <input type="checkbox" id="audio-input-enabled" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <label class="text-sm font-medium text-gray-700">Audio Output (Speakers)</label>
+                            <p class="text-sm text-gray-500">Enable voice synthesis</p>
+                        </div>
+                        <label class="toggle">
+                            <input type="checkbox" id="audio-output-enabled" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <label class="text-sm font-medium text-gray-700">ReSpeaker HAT</label>
+                            <p class="text-sm text-gray-500">Use ReSpeaker for enhanced audio</p>
+                        </div>
+                        <label class="toggle">
+                            <input type="checkbox" id="respeaker-enabled">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <label class="text-sm font-medium text-gray-700">Force ReSpeaker Output</label>
+                            <p class="text-sm text-gray-500">Route all audio through ReSpeaker</p>
+                        </div>
+                        <label class="toggle">
+                            <input type="checkbox" id="force-respeaker-output">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
                 </div>
             </div>
         </div>
@@ -326,6 +373,10 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('chatgpt-enabled').addEventListener('change', updateVoiceSettings);
     document.getElementById('help-enabled').addEventListener('change', updateVoiceSettings);
     document.getElementById('voice-selection').addEventListener('change', updateVoiceSettings);
+    document.getElementById('audio-input-enabled').addEventListener('change', updateVoiceSettings);
+    document.getElementById('audio-output-enabled').addEventListener('change', updateVoiceSettings);
+    document.getElementById('respeaker-enabled').addEventListener('change', updateVoiceSettings);
+    document.getElementById('force-respeaker-output').addEventListener('change', updateVoiceSettings);
 });
 
 function loadVoiceStatus() {
@@ -385,6 +436,12 @@ function updateVoiceStatusUI(status) {
     document.getElementById('help-enabled').checked = status.help_enabled !== false;
     document.getElementById('voice-selection').value = status.voice_selection || 'default';
     document.getElementById('chatgpt-api-key').value = status.chatgpt_api_key ? '•'.repeat(20) : '';
+    
+    // Update audio controls
+    document.getElementById('audio-input-enabled').checked = status.audio_input_enabled !== false;
+    document.getElementById('audio-output-enabled').checked = status.audio_output_enabled !== false;
+    document.getElementById('respeaker-enabled').checked = status.respeaker_enabled || false;
+    document.getElementById('force-respeaker-output').checked = status.force_respeaker_output || false;
 }
 
 function showVoiceOffline() {
@@ -466,7 +523,11 @@ function updateVoiceSettings() {
         voice_volume: parseFloat(document.getElementById('voice-volume').value),
         chatgpt_enabled: document.getElementById('chatgpt-enabled').checked,
         help_enabled: document.getElementById('help-enabled').checked,
-        voice_selection: document.getElementById('voice-selection').value
+        voice_selection: document.getElementById('voice-selection').value,
+        audio_input_enabled: document.getElementById('audio-input-enabled').checked,
+        audio_output_enabled: document.getElementById('audio-output-enabled').checked,
+        respeaker_enabled: document.getElementById('respeaker-enabled').checked,
+        force_respeaker_output: document.getElementById('force-respeaker-output').checked
     };
     
     fetch('/api/voice/settings', {
@@ -497,7 +558,11 @@ function applyVoiceSettings() {
         voice_volume: parseFloat(document.getElementById('voice-volume').value),
         chatgpt_enabled: document.getElementById('chatgpt-enabled').checked,
         help_enabled: document.getElementById('help-enabled').checked,
-        voice_selection: document.getElementById('voice-selection').value
+        voice_selection: document.getElementById('voice-selection').value,
+        audio_input_enabled: document.getElementById('audio-input-enabled').checked,
+        audio_output_enabled: document.getElementById('audio-output-enabled').checked,
+        respeaker_enabled: document.getElementById('respeaker-enabled').checked,
+        force_respeaker_output: document.getElementById('force-respeaker-output').checked
     };
     
     // Include API key only if it's new (not masked)

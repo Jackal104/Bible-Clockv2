@@ -487,6 +487,23 @@ def create_app(verse_manager, image_generator, display_manager, service_manager,
             if 'help_enabled' in data:
                 voice_control.help_enabled = data['help_enabled']
             
+            # Handle audio input/output controls
+            if 'audio_input_enabled' in data:
+                voice_control.audio_input_enabled = data['audio_input_enabled']
+                app.logger.info(f"Audio input: {'enabled' if data['audio_input_enabled'] else 'disabled'}")
+            
+            if 'audio_output_enabled' in data:
+                voice_control.audio_output_enabled = data['audio_output_enabled']
+                app.logger.info(f"Audio output: {'enabled' if data['audio_output_enabled'] else 'disabled'}")
+            
+            if 'respeaker_enabled' in data:
+                voice_control.respeaker_enabled = data['respeaker_enabled']
+                app.logger.info(f"ReSpeaker HAT: {'enabled' if data['respeaker_enabled'] else 'disabled'}")
+            
+            if 'force_respeaker_output' in data:
+                voice_control.force_respeaker_output = data['force_respeaker_output']
+                app.logger.info(f"Force ReSpeaker output: {'enabled' if data['force_respeaker_output'] else 'disabled'}")
+            
             if 'voice_selection' in data:
                 voice_control.voice_selection = data['voice_selection']
                 # Apply voice selection if TTS engine is available

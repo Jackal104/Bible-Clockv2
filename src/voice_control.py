@@ -34,6 +34,11 @@ class BibleClockVoiceControl:
         self.respeaker_sample_rate = int(os.getenv('RESPEAKER_SAMPLE_RATE', '16000'))
         self.respeaker_chunk_size = int(os.getenv('RESPEAKER_CHUNK_SIZE', '1024'))
         
+        # Audio input/output controls
+        self.audio_input_enabled = os.getenv('AUDIO_INPUT_ENABLED', 'true').lower() == 'true'
+        self.audio_output_enabled = os.getenv('AUDIO_OUTPUT_ENABLED', 'true').lower() == 'true'
+        self.force_respeaker_output = os.getenv('FORCE_RESPEAKER_OUTPUT', 'false').lower() == 'true'
+        
         # ChatGPT settings
         self.chatgpt_enabled = os.getenv('ENABLE_CHATGPT', 'false').lower() == 'true'
         self.openai_api_key = os.getenv('OPENAI_API_KEY')
@@ -104,7 +109,15 @@ class BibleClockVoiceControl:
             
             # Initialize text-to-speech with better error handling
             try:
-                self.tts_engine = pyttsx3.init()
+                # Configure TTS for ReSpeaker output if enabled
+                if self.respeaker_enabled and self.force_respeaker_output:
+                    # Try to initialize TTS with ReSpeaker-specific settings
+                    self.tts_engine = pyttsx3.init()
+                    # Configure ALSA device for ReSpeaker output
+                    os.environ['PULSE_PCM_DEVICE'] = 'hw:seeedvoicecard,0'
+                else:
+                    self.tts_engine = pyttsx3.init()
+                    
                 self.tts_engine.setProperty('rate', self.voice_rate)
                 self.tts_engine.setProperty('volume', self.voice_volume)
                 
@@ -118,7 +131,10 @@ class BibleClockVoiceControl:
                     elif len(voices) > 1:
                         self.tts_engine.setProperty('voice', voices[1].id)
                 
-                self.logger.info("TTS engine initialized successfully")
+                if self.respeaker_enabled:
+                    self.logger.info("TTS engine initialized with ReSpeaker HAT support")
+                else:
+                    self.logger.info("TTS engine initialized successfully")
                 
             except RuntimeError as e:
                 if "espeak" in str(e).lower():
@@ -293,7 +309,19 @@ class BibleClockVoiceControl:
     
     def _listen_loop(self):
         """Main listening loop."""
+        # Import here to ensure it's available in this scope
+        try:
+            import speech_recognition as sr
+        except ImportError:
+            self.logger.error("speech_recognition not available")
+            return
+            
         while self.listening:
+            # Check if audio input is enabled
+            if not self.audio_input_enabled:
+                time.sleep(1)
+                continue
+                
             try:
                 with self.microphone as source:
                     self.logger.debug("Listening for 'Bible Clock' wake word...")
@@ -947,6 +975,11 @@ class BibleClockVoiceControl:
     
     def _speak(self, text: str):
         """Speak text using TTS with enhanced voice settings."""
+        # Check if audio output is enabled
+        if not self.audio_output_enabled:
+            self.logger.debug(f"Audio output disabled - would speak: {text[:100]}{'...' if len(text) > 100 else ''}")
+            return
+            
         if not self.tts_engine:
             self.logger.warning(f"TTS not available - would speak: {text[:100]}{'...' if len(text) > 100 else ''}")
             return
@@ -958,8 +991,23 @@ class BibleClockVoiceControl:
             # Enhance speech for better clarity
             enhanced_text = self._enhance_speech_text(text)
             
-            self.tts_engine.say(enhanced_text)
-            self.tts_engine.runAndWait()
+            # Configure audio output device if ReSpeaker is enabled
+            if self.respeaker_enabled and self.force_respeaker_output:
+                # Set environment variable for espeak to use ReSpeaker
+                original_pulse_device = os.environ.get('PULSE_PCM_DEVICE')
+                os.environ['PULSE_PCM_DEVICE'] = 'hw:seeedvoicecard,0'
+                try:
+                    self.tts_engine.say(enhanced_text)
+                    self.tts_engine.runAndWait()
+                finally:
+                    # Restore original device setting
+                    if original_pulse_device:
+                        os.environ['PULSE_PCM_DEVICE'] = original_pulse_device
+                    elif 'PULSE_PCM_DEVICE' in os.environ:
+                        del os.environ['PULSE_PCM_DEVICE']
+            else:
+                self.tts_engine.say(enhanced_text)
+                self.tts_engine.runAndWait()
             
         except Exception as e:
             self.logger.error(f"TTS error: {e}")
@@ -1029,7 +1077,19 @@ class BibleClockVoiceControl:
             'voice_selection': getattr(self, 'voice_selection', 'default'),
             'conversation_length': len(self.conversation_history),
             'available_commands': list(self.help_commands.keys()),
-            'chatgpt_api_key': bool(self.openai_api_key)  # Just show if key is set
+            'chatgpt_api_key': bool(self.openai_api_key),  # Just show if key is set
+            # Audio input/output controls
+            'audio_input_enabled': self.audio_input_enabled,
+            'audio_output_enabled': self.audio_output_enabled,
+            'force_respeaker_output': self.force_respeaker_output,
+            # ReSpeaker settings
+            'respeaker_channels': self.respeaker_channels,
+            'respeaker_sample_rate': self.respeaker_sample_rate,
+            'respeaker_chunk_size': self.respeaker_chunk_size,
+            # Additional voice settings
+            'voice_timeout': self.voice_timeout,
+            'phrase_limit': self.phrase_limit,
+            'help_section_pause': self.help_section_pause
         }
     
     def get_ai_statistics(self) -> Dict[str, Any]:
