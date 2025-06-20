@@ -257,6 +257,12 @@
             <div>
                 <h4 class="font-medium text-gray-800 mb-3">AI Settings</h4>
                 <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">ChatGPT API Key</label>
+                        <input type="password" id="chatgpt-api-key" class="form-input" placeholder="sk-...">
+                        <p class="text-sm text-gray-500 mt-1">OpenAI API key for biblical questions (secure)</p>
+                    </div>
+                    
                     <div class="flex items-center justify-between">
                         <div>
                             <label class="text-sm font-medium text-gray-700">ChatGPT Integration</label>
@@ -266,6 +272,18 @@
                             <input type="checkbox" id="chatgpt-enabled">
                             <span class="slider"></span>
                         </label>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Voice Selection</label>
+                        <select id="voice-selection" class="form-select">
+                            <option value="default">Default System Voice</option>
+                            <option value="female">Female Voice (Preferred)</option>
+                            <option value="male">Male Voice</option>
+                            <option value="calm">Calm & Soothing</option>
+                            <option value="clear">Clear & Articulate</option>
+                        </select>
+                        <p class="text-sm text-gray-500 mt-1">Choose voice style for text-to-speech</p>
                     </div>
                     
                     <div class="flex items-center justify-between">
@@ -280,6 +298,16 @@
                     </div>
                 </div>
             </div>
+        </div>
+        
+        <!-- Apply Settings Button -->
+        <div class="mt-6 flex justify-center">
+            <button onclick="applyVoiceSettings()" class="btn-primary px-8 py-3">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+                Apply Voice Settings
+            </button>
         </div>
     </div>
 </div>
@@ -297,6 +325,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('voice-volume').addEventListener('change', updateVoiceSettings);
     document.getElementById('chatgpt-enabled').addEventListener('change', updateVoiceSettings);
     document.getElementById('help-enabled').addEventListener('change', updateVoiceSettings);
+    document.getElementById('voice-selection').addEventListener('change', updateVoiceSettings);
 });
 
 function loadVoiceStatus() {
@@ -354,6 +383,8 @@ function updateVoiceStatusUI(status) {
     document.getElementById('voice-volume').value = status.voice_volume || 0.8;
     document.getElementById('chatgpt-enabled').checked = status.chatgpt_enabled || false;
     document.getElementById('help-enabled').checked = status.help_enabled !== false;
+    document.getElementById('voice-selection').value = status.voice_selection || 'default';
+    document.getElementById('chatgpt-api-key').value = status.chatgpt_api_key ? '•'.repeat(20) : '';
 }
 
 function showVoiceOffline() {
@@ -434,7 +465,8 @@ function updateVoiceSettings() {
         voice_rate: parseInt(document.getElementById('voice-rate').value),
         voice_volume: parseFloat(document.getElementById('voice-volume').value),
         chatgpt_enabled: document.getElementById('chatgpt-enabled').checked,
-        help_enabled: document.getElementById('help-enabled').checked
+        help_enabled: document.getElementById('help-enabled').checked,
+        voice_selection: document.getElementById('voice-selection').value
     };
     
     fetch('/api/voice/settings', {
@@ -452,6 +484,48 @@ function updateVoiceSettings() {
     })
     .catch(error => {
         showNotification('Network error updating settings', 'error');
+    });
+}
+
+function applyVoiceSettings() {
+    const apiKeyField = document.getElementById('chatgpt-api-key');
+    const apiKey = apiKeyField.value;
+    
+    // Only include API key if it's not the masked value
+    const settings = {
+        voice_rate: parseInt(document.getElementById('voice-rate').value),
+        voice_volume: parseFloat(document.getElementById('voice-volume').value),
+        chatgpt_enabled: document.getElementById('chatgpt-enabled').checked,
+        help_enabled: document.getElementById('help-enabled').checked,
+        voice_selection: document.getElementById('voice-selection').value
+    };
+    
+    // Include API key only if it's new (not masked)
+    if (apiKey && !apiKey.startsWith('•')) {
+        settings.chatgpt_api_key = apiKey;
+    }
+    
+    fetch('/api/voice/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Voice settings applied successfully!', 'success');
+            // Mask the API key field if it was set
+            if (apiKey && !apiKey.startsWith('•')) {
+                apiKeyField.value = '•'.repeat(20);
+            }
+            // Reload status to reflect changes
+            setTimeout(loadVoiceStatus, 1000);
+        } else {
+            showNotification('Failed to apply voice settings', 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('Network error applying settings', 'error');
     });
 }
 

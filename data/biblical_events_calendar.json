@@ -1,0 +1,378 @@
+{
+  "biblical_events_calendar": {
+    "description": "Biblical events organized by calendar dates with fallback to week, month, and season",
+    "events": {
+      "01-01": [
+        {
+          "title": "God's New Beginnings",
+          "description": "New Year reflects God's gift of new beginnings and fresh starts",
+          "verses": [
+            {"reference": "Revelation 21:5", "text": "He who was seated on the throne said, 'I am making everything new!' Then he said, 'Write this down, for these words are trustworthy and true.'"},
+            {"reference": "2 Corinthians 5:17", "text": "Therefore, if anyone is in Christ, the new creation has come: The old has gone, the new is here!"},
+            {"reference": "Lamentations 3:22-23", "text": "Because of the Lord's great love we are not consumed, for his compassions never fail. They are new every morning; great is your faithfulness."}
+          ]
+        }
+      ],
+      "01-06": [
+        {
+          "title": "Epiphany - The Wise Men Visit Jesus",
+          "description": "Celebrates the visit of the Magi to the Christ child",
+          "verses": [
+            {"reference": "Matthew 2:1-2", "text": "After Jesus was born in Bethlehem in Judea, during the time of King Herod, Magi from the east came to Jerusalem and asked, 'Where is the one who has been born king of the Jews? We saw his star when it rose and have come to worship him.'"},
+            {"reference": "Matthew 2:11", "text": "On coming to the house, they saw the child with his mother Mary, and they bowed down and worshiped him. Then they opened their treasures and presented him with gifts of gold, frankincense and myrrh."},
+            {"reference": "Isaiah 60:3", "text": "Nations will come to your light, and kings to the brightness of your dawn."}
+          ]
+        }
+      ],
+      "02-14": [
+        {
+          "title": "Love - God's Greatest Commandment",
+          "description": "Valentine's Day reminds us of God's perfect love",
+          "verses": [
+            {"reference": "1 Corinthians 13:4-7", "text": "Love is patient, love is kind. It does not envy, it does not boast, it is not proud. It does not dishonor others, it is not self-seeking, it is not easily angered, it keeps no record of wrongs. Love does not delight in evil but rejoices with the truth. It always protects, always trusts, always hopes, always perseveres."},
+            {"reference": "1 John 4:8", "text": "Whoever does not love does not know God, because God is love."},
+            {"reference": "John 3:16", "text": "For God so loved the world that he gave his one and only Son, that whoever believes in him shall not perish but have eternal life."}
+          ]
+        }
+      ],
+      "03-17": [
+        {
+          "title": "St. Patrick and God's Calling",
+          "description": "St. Patrick's missionary work reminds us of God's call to spread His word",
+          "verses": [
+            {"reference": "Matthew 28:19-20", "text": "Therefore go and make disciples of all nations, baptizing them in the name of the Father and of the Son and of the Holy Spirit, and teaching them to obey everything I have commanded you. And surely I am with you always, to the very end of the age."},
+            {"reference": "Isaiah 6:8", "text": "Then I heard the voice of the Lord saying, 'Whom shall I send? And who will go for us?' And I said, 'Here am I. Send me!'"},
+            {"reference": "Romans 10:14", "text": "How, then, can they call on the one they have not believed in? And how can they believe in the one of whom they have not heard? And how can they hear without someone preaching to them?"}
+          ]
+        }
+      ],
+      "04-01": [
+        {
+          "title": "Wisdom and Truth",
+          "description": "April Fools' Day reminds us to seek God's wisdom over worldly foolishness",
+          "verses": [
+            {"reference": "Proverbs 1:7", "text": "The fear of the Lord is the beginning of knowledge, but fools despise wisdom and instruction."},
+            {"reference": "1 Corinthians 1:25", "text": "For the foolishness of God is wiser than human wisdom, and the weakness of God is stronger than human strength."},
+            {"reference": "Proverbs 27:14", "text": "Better is open rebuke than hidden love."}
+          ]
+        }
+      ],
+      "05-01": [
+        {
+          "title": "Labor and Rest",
+          "description": "May Day and labor remind us of God's design for work and rest",
+          "verses": [
+            {"reference": "Genesis 2:2-3", "text": "By the seventh day God had finished the work he had been doing; so on the seventh day he rested from all his work. Then God blessed the seventh day and made it holy, because on it he rested from all the work of creating that he had done."},
+            {"reference": "Ecclesiastes 3:1", "text": "There is a time for everything, and a season for every activity under the heavens."},
+            {"reference": "Colossians 3:23", "text": "Whatever you do, work at it with all your heart, as working for the Lord, not for human masters."}
+          ]
+        }
+      ],
+      "06-21": [
+        {
+          "title": "Summer Solstice - God's Light",
+          "description": "The longest day reminds us that God is light",
+          "verses": [
+            {"reference": "John 8:12", "text": "When Jesus spoke again to the people, he said, 'I am the light of the world. Whoever follows me will never walk in darkness, but will have the light of life.'"},
+            {"reference": "1 John 1:5", "text": "This is the message we have heard from him and declare to you: God is light; in him there is no darkness at all."},
+            {"reference": "Psalm 119:105", "text": "Your word is a lamp for my feet, a light on my path."}
+          ]
+        }
+      ],
+      "07-04": [
+        {
+          "title": "Freedom in Christ",
+          "description": "Independence Day reflects the spiritual freedom found in Christ",
+          "verses": [
+            {"reference": "Galatians 5:1", "text": "It is for freedom that Christ has set us free. Stand firm, then, and do not let yourselves be burdened again by a yoke of slavery."},
+            {"reference": "John 8:36", "text": "So if the Son sets you free, you will be free indeed."},
+            {"reference": "2 Corinthians 3:17", "text": "Now the Lord is the Spirit, and where the Spirit of the Lord is, there is freedom."}
+          ]
+        }
+      ],
+      "08-15": [
+        {
+          "title": "Harvest Time",
+          "description": "Mid-August harvest season reflects God's provision and spiritual harvest",
+          "verses": [
+            {"reference": "Matthew 9:37-38", "text": "Then he said to his disciples, 'The harvest is plentiful but the workers are few. Ask the Lord of the harvest, therefore, to send out workers into his harvest field.'"},
+            {"reference": "Galatians 6:9", "text": "Let us not become weary in doing good, for at the proper time we will reap a harvest if we do not give up."},
+            {"reference": "Psalm 126:5-6", "text": "Those who sow with tears will reap with songs of joy. Those who go out weeping, carrying seed to sow, will return with songs of joy, carrying sheaves with them."}
+          ]
+        }
+      ],
+      "09-21": [
+        {
+          "title": "Autumn Equinox - Balance and Preparation",
+          "description": "Fall equinox reminds us of God's perfect balance and preparation for what's ahead",
+          "verses": [
+            {"reference": "Ecclesiastes 3:1", "text": "There is a time for everything, and a season for every activity under the heavens."},
+            {"reference": "Proverbs 6:6-8", "text": "Go to the ant, you sluggard; consider its ways and be wise! It has no commander, no overseer or ruler, yet it stores its provisions in summer and gathers its food at harvest."},
+            {"reference": "Luke 14:28", "text": "Suppose one of you wants to build a tower. Won't you first sit down and estimate the cost to see if you have enough money to complete it?"}
+          ]
+        }
+      ],
+      "10-31": [
+        {
+          "title": "Reformation Day",
+          "description": "Martin Luther's 95 Theses and the Protestant Reformation",
+          "verses": [
+            {"reference": "Romans 1:17", "text": "For in the gospel the righteousness of God is revealed—a righteousness that is by faith from first to last, just as it is written: 'The righteous will live by faith.'"},
+            {"reference": "Ephesians 2:8-9", "text": "For it is by grace you have been saved, through faith—and this is not from yourselves, it is the gift of God—not by works, so that no one can boast."},
+            {"reference": "2 Timothy 3:16", "text": "All Scripture is God-breathed and is useful for teaching, rebuking, correcting and training in righteousness."}
+          ]
+        }
+      ],
+      "11-11": [
+        {
+          "title": "Veterans Day - Spiritual Warfare",
+          "description": "Honoring veterans reminds us of our spiritual battle and God's protection",
+          "verses": [
+            {"reference": "Ephesians 6:11", "text": "Put on the full armor of God, so that you can take your stand against the devil's schemes."},
+            {"reference": "2 Timothy 2:3", "text": "Join with me in suffering, like a good soldier of Christ Jesus."},
+            {"reference": "Isaiah 54:17", "text": "No weapon forged against you will prevail, and you will refute every tongue that accuses you. This is the heritage of the servants of the Lord, and this is their vindication from me, declares the Lord."}
+          ]
+        }
+      ],
+      "12-21": [
+        {
+          "title": "Winter Solstice - Light in Darkness",
+          "description": "The shortest day reminds us that Jesus is the light that shines in darkness",
+          "verses": [
+            {"reference": "John 1:5", "text": "The light shines in the darkness, and the darkness has not overcome it."},
+            {"reference": "Isaiah 9:2", "text": "The people walking in darkness have seen a great light; on those living in the land of deep darkness a light has dawned."},
+            {"reference": "Matthew 4:16", "text": "The people living in darkness have seen a great light; on those living in the land of the shadow of death a light has dawned."}
+          ]
+        }
+      ],
+      "12-25": [
+        {
+          "title": "Christmas - The Birth of Jesus",
+          "description": "The celebration of Jesus Christ's birth",
+          "verses": [
+            {"reference": "Luke 2:10-11", "text": "But the angel said to them, 'Do not be afraid. I bring you good news that will cause great joy for all the people. Today in the town of David a Savior has been born to you; he is the Messiah, the Lord.'"},
+            {"reference": "John 1:14", "text": "The Word became flesh and made his dwelling among us. We have seen his glory, the glory of the one and only Son, who came from the Father, full of grace and truth."},
+            {"reference": "Isaiah 7:14", "text": "Therefore the Lord himself will give you a sign: The virgin will conceive and give birth to a son, and will call him Immanuel."}
+          ]
+        }
+      ]
+    },
+    "weekly_themes": {
+      "sunday": [
+        {
+          "title": "Sabbath Rest and Worship",
+          "verses": [
+            {"reference": "Psalm 118:24", "text": "The Lord has done it this very day; let us rejoice today and be glad."},
+            {"reference": "Hebrews 10:25", "text": "Not giving up meeting together, as some are in the habit of doing, but encouraging one another—and all the more as you see the Day approaching."}
+          ]
+        }
+      ],
+      "monday": [
+        {
+          "title": "New Week, New Mercies",
+          "verses": [
+            {"reference": "Lamentations 3:22-23", "text": "Because of the Lord's great love we are not consumed, for his compassions never fail. They are new every morning; great is your faithfulness."},
+            {"reference": "Isaiah 43:19", "text": "See, I am doing a new thing! Now it springs up; do you not perceive it? I am making a way in the wilderness and streams in the wasteland."}
+          ]
+        }
+      ],
+      "tuesday": [
+        {
+          "title": "Strength for the Journey",
+          "verses": [
+            {"reference": "Isaiah 40:31", "text": "But those who hope in the Lord will renew their strength. They will soar on wings like eagles; they will run and not grow weary, they will walk and not be faint."},
+            {"reference": "Philippians 4:13", "text": "I can do all this through him who gives me strength."}
+          ]
+        }
+      ],
+      "wednesday": [
+        {
+          "title": "Midweek Wisdom",
+          "verses": [
+            {"reference": "Proverbs 3:5-6", "text": "Trust in the Lord with all your heart and lean not on your own understanding; in all your ways submit to him, and he will make your paths straight."},
+            {"reference": "James 1:5", "text": "If any of you lacks wisdom, you should ask God, who gives generously to all without finding fault, and it will be given to you."}
+          ]
+        }
+      ],
+      "thursday": [
+        {
+          "title": "Gratitude and Thanksgiving",
+          "verses": [
+            {"reference": "1 Thessalonians 5:18", "text": "Give thanks in all circumstances; for this is God's will for you in Christ Jesus."},
+            {"reference": "Psalm 100:4", "text": "Enter his gates with thanksgiving and his courts with praise; give thanks to him and praise his name."}
+          ]
+        }
+      ],
+      "friday": [
+        {
+          "title": "The Cross and Sacrifice",
+          "verses": [
+            {"reference": "1 Peter 2:24", "text": "He himself bore our sins in his body on the cross, so that we might die to sins and live for righteousness; by his wounds you have been healed."},
+            {"reference": "Galatians 2:20", "text": "I have been crucified with Christ and I no longer live, but Christ lives in me. The life I now live in the body, I live by faith in the Son of God, who loved me and gave himself for me."}
+          ]
+        }
+      ],
+      "saturday": [
+        {
+          "title": "Rest and Reflection",
+          "verses": [
+            {"reference": "Matthew 11:28", "text": "Come to me, all you who are weary and burdened, and I will give you rest."},
+            {"reference": "Psalm 46:10", "text": "Be still, and know that I am God; I will be exalted among the nations, I will be exalted in the earth."}
+          ]
+        }
+      ]
+    },
+    "monthly_themes": {
+      "january": [
+        {
+          "title": "New Beginnings and Resolutions",
+          "verses": [
+            {"reference": "Revelation 21:5", "text": "He who was seated on the throne said, 'I am making everything new!' Then he said, 'Write this down, for these words are trustworthy and true.'"},
+            {"reference": "Philippians 3:13-14", "text": "Brothers and sisters, I do not consider myself yet to have taken hold of it. But one thing I do: Forgetting what is behind and straining toward what is ahead, I press on toward the goal to win the prize for which God has called me heavenward in Christ Jesus."}
+          ]
+        }
+      ],
+      "february": [
+        {
+          "title": "Love and Relationships",
+          "verses": [
+            {"reference": "1 Corinthians 13:4-7", "text": "Love is patient, love is kind. It does not envy, it does not boast, it is not proud. It does not dishonor others, it is not self-seeking, it is not easily angered, it keeps no record of wrongs. Love does not delight in evil but rejoices with the truth. It always protects, always trusts, always hopes, always perseveres."},
+            {"reference": "1 John 4:19", "text": "We love because he first loved us."}
+          ]
+        }
+      ],
+      "march": [
+        {
+          "title": "Growth and New Life",
+          "verses": [
+            {"reference": "2 Corinthians 5:17", "text": "Therefore, if anyone is in Christ, the new creation has come: The old has gone, the new is here!"},
+            {"reference": "Isaiah 43:19", "text": "See, I am doing a new thing! Now it springs up; do you not perceive it? I am making a way in the wilderness and streams in the wasteland."}
+          ]
+        }
+      ],
+      "april": [
+        {
+          "title": "Resurrection and Hope",
+          "verses": [
+            {"reference": "1 Peter 1:3", "text": "Praise be to the God and Father of our Lord Jesus Christ! In his great mercy he has given us new birth into a living hope through the resurrection of Jesus Christ from the dead."},
+            {"reference": "Romans 6:4", "text": "We were therefore buried with him through baptism into death in order that, just as Christ was raised from the dead through the glory of the Father, we too may live a new life."}
+          ]
+        }
+      ],
+      "may": [
+        {
+          "title": "Mothers and Family",
+          "verses": [
+            {"reference": "Proverbs 31:28", "text": "Her children arise and call her blessed; her husband also, and he praises her."},
+            {"reference": "Ephesians 6:2-3", "text": "Honor your father and mother—which is the first commandment with a promise—so that it may go well with you and that you may enjoy long life on the earth."}
+          ]
+        }
+      ],
+      "june": [
+        {
+          "title": "Fathers and Leadership",
+          "verses": [
+            {"reference": "Ephesians 6:4", "text": "Fathers, do not exasperate your children; instead, bring them up in the training and instruction of the Lord."},
+            {"reference": "Proverbs 22:6", "text": "Start children off on the way they should go, and even when they are old they will not turn from it."}
+          ]
+        }
+      ],
+      "july": [
+        {
+          "title": "Freedom and Independence",
+          "verses": [
+            {"reference": "Galatians 5:1", "text": "It is for freedom that Christ has set us free. Stand firm, then, and do not let yourselves be burdened again by a yoke of slavery."},
+            {"reference": "John 8:32", "text": "Then you will know the truth, and the truth will set you free."}
+          ]
+        }
+      ],
+      "august": [
+        {
+          "title": "Harvest and Provision",
+          "verses": [
+            {"reference": "Matthew 9:37-38", "text": "Then he said to his disciples, 'The harvest is plentiful but the workers are few. Ask the Lord of the harvest, therefore, to send out workers into his harvest field.'"},
+            {"reference": "Philippians 4:19", "text": "And my God will meet all your needs according to the riches of his glory in Christ Jesus."}
+          ]
+        }
+      ],
+      "september": [
+        {
+          "title": "Back to School and Learning",
+          "verses": [
+            {"reference": "Proverbs 1:7", "text": "The fear of the Lord is the beginning of knowledge, but fools despise wisdom and instruction."},
+            {"reference": "2 Timothy 3:16-17", "text": "All Scripture is God-breathed and is useful for teaching, rebuking, correcting and training in righteousness, so that the servant of God may be thoroughly equipped for every good work."}
+          ]
+        }
+      ],
+      "october": [
+        {
+          "title": "Thanksgiving and Gratitude",
+          "verses": [
+            {"reference": "1 Thessalonians 5:18", "text": "Give thanks in all circumstances; for this is God's will for you in Christ Jesus."},
+            {"reference": "Psalm 107:1", "text": "Give thanks to the Lord, for he is good; his love endures forever."}
+          ]
+        }
+      ],
+      "november": [
+        {
+          "title": "Thanksgiving and Reflection",
+          "verses": [
+            {"reference": "Psalm 100:4", "text": "Enter his gates with thanksgiving and his courts with praise; give thanks to him and praise his name."},
+            {"reference": "Colossians 3:17", "text": "And whatever you do, whether in word or deed, do it all in the name of the Lord Jesus, giving thanks to God the Father through him."}
+          ]
+        }
+      ],
+      "december": [
+        {
+          "title": "Advent and Christmas",
+          "verses": [
+            {"reference": "Isaiah 9:6", "text": "For to us a child is born, to us a son is given, and the government will be on his shoulders. And he will be called Wonderful Counselor, Mighty God, Everlasting Father, Prince of Peace."},
+            {"reference": "Luke 2:10-11", "text": "But the angel said to them, 'Do not be afraid. I bring you good news that will cause great joy for all the people. Today in the town of David a Savior has been born to you; he is the Messiah, the Lord.'"}
+          ]
+        }
+      ]
+    },
+    "seasonal_themes": {
+      "spring": [
+        {
+          "title": "New Life and Renewal",
+          "verses": [
+            {"reference": "2 Corinthians 5:17", "text": "Therefore, if anyone is in Christ, the new creation has come: The old has gone, the new is here!"},
+            {"reference": "Isaiah 43:19", "text": "See, I am doing a new thing! Now it springs up; do you not perceive it? I am making a way in the wilderness and streams in the wasteland."},
+            {"reference": "Romans 6:4", "text": "We were therefore buried with him through baptism into death in order that, just as Christ was raised from the dead through the glory of the Father, we too may live a new life."}
+          ]
+        }
+      ],
+      "summer": [
+        {
+          "title": "Growth and Abundance",
+          "verses": [
+            {"reference": "2 Peter 3:18", "text": "But grow in the grace and knowledge of our Lord and Savior Jesus Christ. To him be glory both now and forever! Amen."},
+            {"reference": "John 15:5", "text": "I am the vine; you are the branches. If you remain in me and I in you, you will bear much fruit; apart from me you can do nothing."},
+            {"reference": "Psalm 1:3", "text": "That person is like a tree planted by streams of water, which yields its fruit in season and whose leaf does not wither—whatever they do prospers."}
+          ]
+        }
+      ],
+      "autumn": [
+        {
+          "title": "Harvest and Thanksgiving",
+          "verses": [
+            {"reference": "Galatians 6:9", "text": "Let us not become weary in doing good, for at the proper time we will reap a harvest if we do not give up."},
+            {"reference": "Psalm 126:5-6", "text": "Those who sow with tears will reap with songs of joy. Those who go out weeping, carrying seed to sow, will return with songs of joy, carrying sheaves with them."},
+            {"reference": "1 Thessalonians 5:18", "text": "Give thanks in all circumstances; for this is God's will for you in Christ Jesus."}
+          ]
+        }
+      ],
+      "winter": [
+        {
+          "title": "Rest and Reflection",
+          "verses": [
+            {"reference": "Psalm 46:10", "text": "Be still, and know that I am God; I will be exalted among the nations, I will be exalted in the earth."},
+            {"reference": "Matthew 11:28", "text": "Come to me, all you who are weary and burdened, and I will give you rest."},
+            {"reference": "Isaiah 40:31", "text": "But those who hope in the Lord will renew their strength. They will soar on wings like eagles; they will run and not grow weary, they will walk and not be faint."}
+          ]
+        }
+      ]
+    }
+  }
+}

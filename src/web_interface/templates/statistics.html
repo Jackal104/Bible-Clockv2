@@ -29,7 +29,7 @@
     </div>
 
     <!-- Overview Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         <!-- Total Verses -->
         <div class="bg-white rounded-lg shadow p-6">
             <div class="flex items-center">
@@ -91,6 +91,61 @@
                     <p class="text-3xl font-bold text-gray-900" id="api-success">--%</p>
                     <p class="text-sm text-gray-500">Successful requests</p>
                 </div>
+            </div>
+        </div>
+
+        <!-- ChatGPT Token Usage -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="p-3 bg-indigo-100 rounded-lg">
+                    <svg class="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <h4 class="text-sm font-medium text-gray-500 uppercase tracking-wide">ChatGPT Tokens</h4>
+                    <p class="text-3xl font-bold text-gray-900" id="chatgpt-tokens">--</p>
+                    <p class="text-sm text-gray-500" id="token-cost">Est. cost: $--</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Usage Section -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="text-lg font-semibold text-bible-dark mb-4">AI Assistant Usage</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- Questions Asked -->
+            <div class="text-center">
+                <div class="inline-flex items-center justify-center w-12 h-12 bg-blue-100 rounded-lg mb-3">
+                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <p class="text-2xl font-bold text-gray-900" id="total-questions">--</p>
+                <p class="text-sm text-gray-500">Questions Asked</p>
+            </div>
+            
+            <!-- Average Response Time -->
+            <div class="text-center">
+                <div class="inline-flex items-center justify-center w-12 h-12 bg-green-100 rounded-lg mb-3">
+                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <p class="text-2xl font-bold text-gray-900" id="avg-response-time">--</p>
+                <p class="text-sm text-gray-500">Avg Response (sec)</p>
+            </div>
+            
+            <!-- Success Rate -->
+            <div class="text-center">
+                <div class="inline-flex items-center justify-center w-12 h-12 bg-purple-100 rounded-lg mb-3">
+                    <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <p class="text-2xl font-bold text-gray-900" id="ai-success-rate">--%</p>
+                <p class="text-sm text-gray-500">Success Rate</p>
             </div>
         </div>
     </div>
@@ -234,6 +289,18 @@ function updateStatistics(stats) {
     document.getElementById('total-verses').textContent = stats.verses_displayed || 0;
     document.getElementById('books-accessed').textContent = (stats.books_accessed || []).length;
     document.getElementById('api-success').textContent = Math.round(stats.api_success_rate || 98.5) + '%';
+    
+    // Update ChatGPT/AI statistics
+    const aiStats = stats.ai_statistics || {};
+    document.getElementById('chatgpt-tokens').textContent = (aiStats.total_tokens || 0).toLocaleString();
+    
+    // Estimate cost (roughly $0.002 per 1K tokens for GPT-3.5-turbo)
+    const estimatedCost = ((aiStats.total_tokens || 0) / 1000) * 0.002;
+    document.getElementById('token-cost').textContent = `Est. cost: $${estimatedCost.toFixed(4)}`;
+    
+    document.getElementById('total-questions').textContent = aiStats.total_questions || 0;
+    document.getElementById('avg-response-time').textContent = (aiStats.avg_response_time || 0).toFixed(1);
+    document.getElementById('ai-success-rate').textContent = Math.round(aiStats.success_rate || 0) + '%';
     
     // Update charts
     updateModeChart(stats.mode_usage || {});

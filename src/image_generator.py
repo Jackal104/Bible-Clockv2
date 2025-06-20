@@ -750,22 +750,57 @@ class ImageGenerator:
         self._add_verse_reference_display(draw, verse_data)
     
     def _add_verse_reference_display(self, draw: ImageDraw.Draw, verse_data: Dict):
-        """Add verse reference in bottom-right corner as time display."""
-        reference = verse_data.get('reference', 'Unknown')
+        """Add verse reference in bottom-right corner, or date for date-based mode."""
+        # Check if this is date-based mode
+        if verse_data.get('is_date_event'):
+            # Show the actual date instead of reference for date-based mode
+            now = datetime.now()
+            
+            # Add cycling information if available
+            cycle_info = verse_data.get('verse_cycle_position', '')
+            next_change = verse_data.get('next_verse_minutes', 0)
+            
+            if cycle_info and next_change:
+                display_text = f"{now.strftime('%B %d, %Y')}\n{cycle_info} • Next: {next_change}m"
+            else:
+                display_text = now.strftime('%B %d, %Y')
+        else:
+            # Regular verse mode - show reference
+            display_text = verse_data.get('reference', 'Unknown')
         
         if self.reference_font:
             # Position in bottom-right corner with margin
             margin_x = 40
             margin_y = 40
             
-            # Get text dimensions
-            ref_bbox = draw.textbbox((0, 0), reference, font=self.reference_font)
-            text_width = ref_bbox[2] - ref_bbox[0]
-            text_height = ref_bbox[3] - ref_bbox[1]
+            # Handle multi-line text for date mode
+            lines = display_text.split('\n')
+            total_height = 0
+            max_width = 0
+            
+            # Calculate total dimensions
+            for line in lines:
+                ref_bbox = draw.textbbox((0, 0), line, font=self.reference_font)
+                line_width = ref_bbox[2] - ref_bbox[0]
+                line_height = ref_bbox[3] - ref_bbox[1]
+                max_width = max(max_width, line_width)
+                total_height += line_height + 5  # Small spacing between lines
+            
+            total_height -= 5  # Remove extra spacing from last line
             
             # Calculate position (bottom-right aligned)
-            x = self.width - text_width - margin_x
-            y = self.height - text_height - margin_y
+            x = self.width - max_width - margin_x
+            y = self.height - total_height - margin_y
             
-            # Draw reference with emphasis (larger, bolder appearance)
-            draw.text((x, y), reference, fill=0, font=self.reference_font)
+            # Draw text (line by line for multi-line support)
+            current_y = y
+            for line in lines:
+                if line.strip():  # Only draw non-empty lines
+                    line_bbox = draw.textbbox((0, 0), line, font=self.reference_font)
+                    line_width = line_bbox[2] - line_bbox[0]
+                    line_height = line_bbox[3] - line_bbox[1]
+                    
+                    # Right-align each line
+                    line_x = self.width - line_width - margin_x
+                    draw.text((line_x, current_y), line, fill=0, font=self.reference_font)
+                    current_y += line_height + 5

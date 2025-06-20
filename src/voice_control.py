@@ -61,6 +61,17 @@ class BibleClockVoiceControl:
         self.conversation_history = []
         self.current_verse_context = None
         
+        # Token usage tracking
+        self.token_usage_stats = {
+            'total_tokens': 0,
+            'total_questions': 0,
+            'total_cost': 0.0,
+            'successful_requests': 0,
+            'failed_requests': 0,
+            'response_times': [],
+            'daily_usage': {}
+        }
+        
         # Help system
         self.help_commands = self._initialize_help_system()
         
@@ -551,6 +562,8 @@ class BibleClockVoiceControl:
             self._speak("Biblical questions are not currently enabled. Please check your configuration to enable the AI assistant.")
             return
         
+        start_time = time.time()
+        
         try:
             import openai
             
@@ -585,6 +598,18 @@ class BibleClockVoiceControl:
                 timeout=self.chatgpt_timeout
             )
             
+            # Calculate response time
+            response_time = time.time() - start_time
+            
+            # Extract token usage
+            token_usage = response.get('usage', {})
+            total_tokens = token_usage.get('total_tokens', 0)
+            prompt_tokens = token_usage.get('prompt_tokens', 0)
+            completion_tokens = token_usage.get('completion_tokens', 0)
+            
+            # Update token usage statistics
+            self._update_token_stats(total_tokens, response_time, True)
+            
             answer = response.choices[0].message.content.strip()
             
             # Update conversation history
@@ -595,19 +620,56 @@ class BibleClockVoiceControl:
             if len(self.conversation_history) > 10:
                 self.conversation_history = self.conversation_history[-10:]
             
-            self.logger.info(f"ChatGPT response generated for: {question}")
+            self.logger.info(f"ChatGPT response generated for: {question} (Tokens: {total_tokens}, Time: {response_time:.1f}s)")
             
             # Speak the response
             self._speak(answer)
             
-            # Log the interaction
-            self._log_chatgpt_interaction(question, answer)
+            # Log the interaction with token info
+            self._log_chatgpt_interaction(question, answer, {
+                'tokens': total_tokens,
+                'prompt_tokens': prompt_tokens,
+                'completion_tokens': completion_tokens,
+                'response_time': response_time
+            })
             
         except Exception as e:
+            # Update failed request stats
+            response_time = time.time() - start_time
+            self._update_token_stats(0, response_time, False)
+            
             self.logger.error(f"ChatGPT processing error: {e}")
             self._speak("I'm sorry, I'm having trouble accessing my biblical knowledge base right now. Please try again later.")
     
-    def _log_chatgpt_interaction(self, question: str, answer: str):
+    def _update_token_stats(self, tokens: int, response_time: float, success: bool):
+        """Update token usage statistics."""
+        today = datetime.now().strftime('%Y-%m-%d')
+        
+        if success:
+            self.token_usage_stats['total_tokens'] += tokens
+            self.token_usage_stats['total_questions'] += 1
+            self.token_usage_stats['successful_requests'] += 1
+            
+            # Estimate cost (GPT-3.5-turbo: ~$0.002 per 1K tokens)
+            cost_per_1k_tokens = 0.002
+            self.token_usage_stats['total_cost'] += (tokens / 1000) * cost_per_1k_tokens
+        else:
+            self.token_usage_stats['failed_requests'] += 1
+        
+        # Track response times (keep last 100 for average calculation)
+        self.token_usage_stats['response_times'].append(response_time)
+        if len(self.token_usage_stats['response_times']) > 100:
+            self.token_usage_stats['response_times'] = self.token_usage_stats['response_times'][-100:]
+        
+        # Track daily usage
+        if today not in self.token_usage_stats['daily_usage']:
+            self.token_usage_stats['daily_usage'][today] = {'tokens': 0, 'questions': 0}
+        
+        if success:
+            self.token_usage_stats['daily_usage'][today]['tokens'] += tokens
+            self.token_usage_stats['daily_usage'][today]['questions'] += 1
+    
+    def _log_chatgpt_interaction(self, question: str, answer: str, usage_info: dict = None):
         """Log ChatGPT interactions for review."""
         try:
             log_entry = {
@@ -616,6 +678,10 @@ class BibleClockVoiceControl:
                 'answer': answer,
                 'verse_context': self.current_verse_context.get('reference') if self.current_verse_context else None
             }
+            
+            # Add usage information if provided
+            if usage_info:
+                log_entry['usage'] = usage_info
             
             # Append to interactions log file
             log_file = 'logs/chatgpt_interactions.jsonl'
@@ -940,7 +1006,36 @@ class BibleClockVoiceControl:
             'voice_rate': self.voice_rate,
             'voice_volume': self.voice_volume,
             'conversation_length': len(self.conversation_history),
-            'available_commands': list(self.help_commands.keys())
+            'available_commands': list(self.help_commands.keys()),
+            'chatgpt_api_key': bool(self.openai_api_key)  # Just show if key is set
+        }
+    
+    def get_ai_statistics(self) -> Dict[str, Any]:
+        """Get AI/ChatGPT usage statistics."""
+        stats = self.token_usage_stats.copy()
+        
+        # Calculate success rate
+        total_requests = stats['successful_requests'] + stats['failed_requests']
+        if total_requests > 0:
+            success_rate = (stats['successful_requests'] / total_requests) * 100
+        else:
+            success_rate = 0
+        
+        # Calculate average response time
+        if stats['response_times']:
+            avg_response_time = sum(stats['response_times']) / len(stats['response_times'])
+        else:
+            avg_response_time = 0
+        
+        return {
+            'total_tokens': stats['total_tokens'],
+            'total_questions': stats['total_questions'],
+            'total_cost': stats['total_cost'],
+            'success_rate': success_rate,
+            'avg_response_time': avg_response_time,
+            'successful_requests': stats['successful_requests'],
+            'failed_requests': stats['failed_requests'],
+            'daily_usage': stats['daily_usage']
         }
 
 

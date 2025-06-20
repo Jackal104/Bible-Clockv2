@@ -80,16 +80,30 @@ class VerseManager:
     def _load_biblical_calendar(self):
         """Load biblical events calendar."""
         try:
-            calendar_path = Path('data/biblical_calendar.json')
+            calendar_path = Path('data/biblical_events_calendar.json')
             if calendar_path.exists():
                 with open(calendar_path, 'r') as f:
-                    self.biblical_calendar = json.load(f)
+                    calendar_data = json.load(f)
+                    self.biblical_events_calendar = calendar_data['biblical_events_calendar']
+                self.logger.info(f"Loaded biblical events calendar with events, weekly, monthly, and seasonal themes")
             else:
-                self.biblical_calendar = self._get_default_biblical_calendar()
-            self.logger.info(f"Loaded biblical calendar with {len(self.biblical_calendar)} entries")
+                self.biblical_events_calendar = self._get_default_biblical_calendar()
+            
+            # Also keep old calendar for backward compatibility
+            try:
+                old_calendar_path = Path('data/biblical_calendar.json')
+                if old_calendar_path.exists():
+                    with open(old_calendar_path, 'r') as f:
+                        self.biblical_calendar = json.load(f)
+                else:
+                    self.biblical_calendar = {}
+            except:
+                self.biblical_calendar = {}
+                
         except Exception as e:
             self.logger.error(f"Failed to load biblical calendar: {e}")
-            self.biblical_calendar = self._get_default_biblical_calendar()
+            self.biblical_events_calendar = self._get_default_biblical_calendar()
+            self.biblical_calendar = {}
     
     def _populate_available_books(self):
         """Populate the list of available books from local KJV data."""
@@ -248,78 +262,95 @@ class VerseManager:
         return verse_data
     
     def _get_date_based_verse(self) -> Dict:
-        """Get verse based on today's date and biblical events."""
-        today = date.today()
+        """Get verse based on today's date and biblical events with 15-minute cycling."""
+        now = datetime.now()
+        today = now.date()
         
-        # Try exact date match (MM-DD)
-        date_key = f"{today.month}-{today.day}"
-        if date_key in self.biblical_calendar:
-            event = self.biblical_calendar[date_key]
+        # Calculate which verse to show based on 15-minute intervals
+        # This gives us 4 verses per hour, 96 verse slots per day
+        quarter_hour = now.minute // 15  # 0, 1, 2, or 3
+        hour = now.hour
+        verse_index = (hour * 4) + quarter_hour  # 0-95
+        
+        # First, try to get verses for exact date (MM-DD format)
+        date_key = f"{today.month:02d}-{today.day:02d}"
+        available_verses = []
+        match_type = "exact"
+        event_info = None
+        
+        if date_key in self.biblical_events_calendar.get('events', {}):
+            events = self.biblical_events_calendar['events'][date_key]
+            for event in events:
+                event_info = event
+                available_verses.extend(event['verses'])
+        
+        # If no exact date match, try weekly theme
+        if not available_verses:
+            weekday_name = calendar.day_name[today.weekday()].lower()
+            weekly_themes = self.biblical_events_calendar.get('weekly_themes', {})
+            if weekday_name in weekly_themes:
+                for theme in weekly_themes[weekday_name]:
+                    event_info = theme
+                    available_verses.extend(theme['verses'])
+                match_type = "weekly"
+        
+        # If no weekly match, try monthly theme
+        if not available_verses:
+            month_name = calendar.month_name[today.month].lower()
+            monthly_themes = self.biblical_events_calendar.get('monthly_themes', {})
+            if month_name in monthly_themes:
+                for theme in monthly_themes[month_name]:
+                    event_info = theme
+                    available_verses.extend(theme['verses'])
+                match_type = "monthly"
+        
+        # If no monthly match, try seasonal theme
+        if not available_verses:
+            season = self._get_current_season(today)
+            seasonal_themes = self.biblical_events_calendar.get('seasonal_themes', {})
+            if season in seasonal_themes:
+                for theme in seasonal_themes[season]:
+                    event_info = theme
+                    available_verses.extend(theme['verses'])
+                match_type = "seasonal"
+        
+        # If we have verses, cycle through them based on time
+        if available_verses:
+            verse = available_verses[verse_index % len(available_verses)]
+            
+            # Parse reference to extract book, chapter, verse
+            ref_parts = verse['reference'].split()
+            book = ref_parts[0]
+            if len(ref_parts) > 1 and ':' in ref_parts[-1]:
+                chapter_verse = ref_parts[-1].split(':')
+                chapter = int(chapter_verse[0]) if chapter_verse[0].isdigit() else 1
+                verse_num = int(chapter_verse[1]) if len(chapter_verse) > 1 and chapter_verse[1].isdigit() else 1
+            else:
+                chapter = 1
+                verse_num = 1
+            
             return {
-                'reference': event['reference'],
-                'text': event['text'],
-                'book': event['reference'].split()[0],
-                'chapter': 0,
-                'verse': 0,
+                'reference': verse['reference'],
+                'text': verse['text'],
+                'book': book,
+                'chapter': chapter,
+                'verse': verse_num,
                 'is_date_event': True,
-                'event_name': event['event'],
-                'event_description': event['description'],
-                'date_match': 'exact'
+                'event_name': event_info.get('title', f"Biblical Event for {today.strftime('%B %d')}"),
+                'event_description': event_info.get('description', 'Biblical wisdom for today'),
+                'date_match': match_type,
+                'verse_cycle_position': f"{verse_index % len(available_verses) + 1} of {len(available_verses)}",
+                'next_verse_minutes': 15 - (now.minute % 15)
             }
         
-        # Try week match (same week of year)
-        week_events = self._get_week_events(today)
-        if week_events:
-            event = random.choice(week_events)
-            return {
-                'reference': event['reference'],
-                'text': event['text'],
-                'book': event['reference'].split()[0],
-                'chapter': 0,
-                'verse': 0,
-                'is_date_event': True,
-                'event_name': event['event'],
-                'event_description': event['description'],
-                'date_match': 'week'
-            }
-        
-        # Try month match
-        month_events = self._get_month_events(today.month)
-        if month_events:
-            event = random.choice(month_events)
-            return {
-                'reference': event['reference'],
-                'text': event['text'],
-                'book': event['reference'].split()[0],
-                'chapter': 0,
-                'verse': 0,
-                'is_date_event': True,
-                'event_name': event['event'],
-                'event_description': event['description'],
-                'date_match': 'month'
-            }
-        
-        # Try season match
-        season_event = self._get_season_event(today)
-        if season_event:
-            return {
-                'reference': season_event['reference'],
-                'text': season_event['text'],
-                'book': season_event['reference'].split()[0],
-                'chapter': 0,
-                'verse': 0,
-                'is_date_event': True,
-                'event_name': season_event['event'],
-                'event_description': season_event['description'],
-                'date_match': 'season'
-            }
-        
-        # Fallback to random verse with date context
+        # Ultimate fallback to random verse with date context
         fallback = random.choice(self.fallback_verses)
         fallback['is_date_event'] = True
         fallback['event_name'] = f"Daily Blessing for {today.strftime('%B %d')}"
         fallback['event_description'] = "God's word for today"
         fallback['date_match'] = 'fallback'
+        fallback['verse_cycle_position'] = "1 of 1"
+        fallback['next_verse_minutes'] = 15 - (now.minute % 15)
         
         return fallback
     
@@ -638,6 +669,25 @@ class VerseManager:
             # Continue with single translation
             
         return verse_data
+
+    def _get_current_season(self, today):
+        """Get the current season based on the date."""
+        month = today.month
+        day = today.day
+        
+        # Spring: March 20 - June 20
+        if (month == 3 and day >= 20) or (month in [4, 5]) or (month == 6 and day < 21):
+            return 'spring'
+        # Summer: June 21 - September 21
+        elif (month == 6 and day >= 21) or (month in [7, 8]) or (month == 9 and day < 22):
+            return 'summer'
+        # Autumn/Fall: September 22 - December 20
+        elif (month == 9 and day >= 22) or (month in [10, 11]) or (month == 12 and day < 21):
+            return 'autumn'
+        # Winter: December 21 - March 19
+        else:
+            return 'winter'
+
 
 class VerseScheduler:
     """Handles scheduling of verse updates."""
