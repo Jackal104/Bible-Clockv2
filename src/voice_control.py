@@ -56,6 +56,7 @@ class BibleClockVoiceControl:
         self.tts_engine = None
         self.listening = False
         self.command_queue = queue.Queue()
+        self.voice_selection = 'default'  # Store current voice selection
         
         # ChatGPT conversation context
         self.conversation_history = []
@@ -101,30 +102,48 @@ class BibleClockVoiceControl:
             self.recognizer.pause_threshold = 0.8
             self.recognizer.operation_timeout = self.voice_timeout
             
-            # Initialize text-to-speech
-            self.tts_engine = pyttsx3.init()
-            self.tts_engine.setProperty('rate', self.voice_rate)
-            self.tts_engine.setProperty('volume', self.voice_volume)
+            # Initialize text-to-speech with better error handling
+            try:
+                self.tts_engine = pyttsx3.init()
+                self.tts_engine.setProperty('rate', self.voice_rate)
+                self.tts_engine.setProperty('volume', self.voice_volume)
+                
+                # Set voice to a pleasant one if available
+                voices = self.tts_engine.getProperty('voices')
+                if voices:
+                    # Prefer female voices for biblical content (often perceived as more soothing)
+                    female_voices = [v for v in voices if 'female' in v.name.lower() or 'woman' in v.name.lower()]
+                    if female_voices:
+                        self.tts_engine.setProperty('voice', female_voices[0].id)
+                    elif len(voices) > 1:
+                        self.tts_engine.setProperty('voice', voices[1].id)
+                
+                self.logger.info("TTS engine initialized successfully")
+                
+            except RuntimeError as e:
+                if "espeak" in str(e).lower():
+                    self.logger.error("TTS engine requires espeak/espeak-ng. Install with: sudo apt-get install espeak espeak-data")
+                    self.logger.info("Voice synthesis disabled - espeak not available")
+                else:
+                    self.logger.error(f"TTS engine initialization failed: {e}")
+                self.tts_engine = None
+            except Exception as e:
+                self.logger.error(f"TTS engine initialization failed: {e}")
+                self.tts_engine = None
             
-            # Set voice to a pleasant one if available
-            voices = self.tts_engine.getProperty('voices')
-            if voices:
-                # Prefer female voices for biblical content (often perceived as more soothing)
-                female_voices = [v for v in voices if 'female' in v.name.lower() or 'woman' in v.name.lower()]
-                if female_voices:
-                    self.tts_engine.setProperty('voice', female_voices[0].id)
-                elif len(voices) > 1:
-                    self.tts_engine.setProperty('voice', voices[1].id)
+            # Try to adjust for ambient noise only if microphone is available
+            try:
+                with self.microphone as source:
+                    self.logger.info("Adjusting for ambient noise... Please wait.")
+                    self.recognizer.adjust_for_ambient_noise(source, duration=2)
+            except Exception as e:
+                self.logger.warning(f"Could not adjust for ambient noise: {e}")
             
-            # Adjust for ambient noise
-            with self.microphone as source:
-                self.logger.info("Adjusting for ambient noise... Please wait.")
-                self.recognizer.adjust_for_ambient_noise(source, duration=2)
-            
-            self.logger.info("Bible Clock voice control initialized successfully")
+            self.logger.info("Bible Clock voice control initialized (TTS may be limited)")
             
         except ImportError as e:
             self.logger.error(f"Voice control libraries not available: {e}")
+            self.logger.info("Install with: pip install pyttsx3 speechrecognition pyaudio")
             self.enabled = False
         except Exception as e:
             self.logger.error(f"Voice control initialization failed: {e}")
@@ -929,6 +948,7 @@ class BibleClockVoiceControl:
     def _speak(self, text: str):
         """Speak text using TTS with enhanced voice settings."""
         if not self.tts_engine:
+            self.logger.warning(f"TTS not available - would speak: {text[:100]}{'...' if len(text) > 100 else ''}")
             return
         
         try:
@@ -943,6 +963,7 @@ class BibleClockVoiceControl:
             
         except Exception as e:
             self.logger.error(f"TTS error: {e}")
+            self.logger.warning(f"Failed to speak: {text[:100]}{'...' if len(text) > 100 else ''}")
     
     def _enhance_speech_text(self, text: str) -> str:
         """Enhance text for better speech synthesis."""
@@ -1005,6 +1026,7 @@ class BibleClockVoiceControl:
             'respeaker_enabled': self.respeaker_enabled,
             'voice_rate': self.voice_rate,
             'voice_volume': self.voice_volume,
+            'voice_selection': getattr(self, 'voice_selection', 'default'),
             'conversation_length': len(self.conversation_history),
             'available_commands': list(self.help_commands.keys()),
             'chatgpt_api_key': bool(self.openai_api_key)  # Just show if key is set

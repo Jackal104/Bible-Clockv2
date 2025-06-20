@@ -209,6 +209,22 @@ def create_app(verse_manager, image_generator, display_manager, service_manager,
             else:
                 stats = _generate_basic_statistics()
             
+            # Add AI statistics if voice control is available
+            if hasattr(app.service_manager, 'voice_control') and app.service_manager.voice_control:
+                stats['ai_statistics'] = app.service_manager.voice_control.get_ai_statistics()
+            else:
+                # Provide empty AI statistics if voice control not available
+                stats['ai_statistics'] = {
+                    'total_tokens': 0,
+                    'total_questions': 0,
+                    'total_cost': 0.0,
+                    'success_rate': 0,
+                    'avg_response_time': 0,
+                    'successful_requests': 0,
+                    'failed_requests': 0,
+                    'daily_usage': {}
+                }
+            
             return jsonify({'success': True, 'data': stats})
         except Exception as e:
             app.logger.error(f"Statistics API error: {e}")
@@ -454,13 +470,57 @@ def create_app(verse_manager, image_generator, display_manager, service_manager,
                 if voice_control.tts_engine:
                     voice_control.tts_engine.setProperty('volume', data['voice_volume'])
             
+            # Handle API key FIRST before enabling ChatGPT
+            if 'chatgpt_api_key' in data:
+                # Update the OpenAI API key
+                api_key = data['chatgpt_api_key']
+                if api_key and not api_key.startswith('•'):  # Not a masked value
+                    voice_control.openai_api_key = api_key
+                    # Re-initialize ChatGPT with the new key
+                    voice_control._initialize_chatgpt()
+                    app.logger.info("ChatGPT API key updated")
+            
+            # Now handle ChatGPT enabled/disabled AFTER API key is set
             if 'chatgpt_enabled' in data:
                 voice_control.set_chatgpt_enabled(data['chatgpt_enabled'])
             
             if 'help_enabled' in data:
                 voice_control.help_enabled = data['help_enabled']
             
-            return jsonify({'success': True, 'message': 'Voice settings updated'})
+            if 'voice_selection' in data:
+                voice_control.voice_selection = data['voice_selection']
+                # Apply voice selection if TTS engine is available
+                if voice_control.tts_engine:
+                    voices = voice_control.tts_engine.getProperty('voices')
+                    if voices:
+                        selection = data['voice_selection']
+                        if selection == 'female':
+                            female_voices = [v for v in voices if 'female' in v.name.lower() or 'woman' in v.name.lower()]
+                            if female_voices:
+                                voice_control.tts_engine.setProperty('voice', female_voices[0].id)
+                        elif selection == 'male':
+                            male_voices = [v for v in voices if 'male' in v.name.lower() or 'man' in v.name.lower()]
+                            if male_voices:
+                                voice_control.tts_engine.setProperty('voice', male_voices[0].id)
+                        elif selection == 'calm':
+                            # Look for voices with calm/soothing in name, fallback to first female
+                            calm_voices = [v for v in voices if any(word in v.name.lower() for word in ['calm', 'sooth', 'gentle'])]
+                            if calm_voices:
+                                voice_control.tts_engine.setProperty('voice', calm_voices[0].id)
+                            else:
+                                female_voices = [v for v in voices if 'female' in v.name.lower()]
+                                if female_voices:
+                                    voice_control.tts_engine.setProperty('voice', female_voices[0].id)
+                        elif selection == 'clear':
+                            # Look for voices with clear/articulate in name
+                            clear_voices = [v for v in voices if any(word in v.name.lower() for word in ['clear', 'articulate', 'crisp'])]
+                            if clear_voices:
+                                voice_control.tts_engine.setProperty('voice', clear_voices[0].id)
+                            elif len(voices) > 1:
+                                voice_control.tts_engine.setProperty('voice', voices[1].id)
+                        # 'default' uses system default (no change needed)
+            
+            return jsonify({'success': True, 'message': 'Voice settings updated successfully'})
             
         except Exception as e:
             app.logger.error(f"Voice settings API error: {e}")
