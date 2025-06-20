@@ -29,6 +29,19 @@ sudo apt-get upgrade -y
 
 # Install basic system dependencies
 echo "📦 Installing system dependencies..."
+
+# Try to install libtiff with fallback for different package names
+TIFF_PACKAGE=""
+if apt-cache show libtiff5-dev >/dev/null 2>&1; then
+    TIFF_PACKAGE="libtiff5-dev"
+elif apt-cache show libtiff-dev >/dev/null 2>&1; then
+    TIFF_PACKAGE="libtiff-dev"
+elif apt-cache show libtiff5 >/dev/null 2>&1; then
+    TIFF_PACKAGE="libtiff5"
+else
+    echo "⚠️  Warning: Could not find libtiff package, skipping..."
+fi
+
 sudo apt-get install -y \
     python3-pip \
     python3-dev \
@@ -42,7 +55,7 @@ sudo apt-get install -y \
     libfreetype6-dev \
     liblcms2-dev \
     libopenjp2-7 \
-    libtiff5 \
+    $TIFF_PACKAGE \
     espeak \
     espeak-data \
     alsa-utils \
