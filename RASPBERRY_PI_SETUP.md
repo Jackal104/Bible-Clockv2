@@ -109,8 +109,11 @@ sudo apt install -y python3-pip python3-dev python3-venv git \
   libfreetype6-dev liblcms2-dev libopenjp2-7 libtiff5 \
   espeak espeak-data alsa-utils portaudio19-dev libasound2-dev
 
-# 2. Install Python dependencies
-pip3 install -r requirements-pi.txt
+# 2. Create virtual environment and install Python dependencies
+python3 -m venv venv
+source venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements-pi.txt
 
 # 3. Setup e-ink display drivers
 ./scripts/setup_eink_display.sh
@@ -153,15 +156,18 @@ WEB_PORT=5000                 # Web interface port
 
 ### 2. Test Hardware Connections
 ```bash
+# Activate virtual environment first
+source venv/bin/activate
+
 # Test e-ink display
-python3 -c "
+python -c "
 from src.display_manager import DisplayManager
 dm = DisplayManager()
 print('Display initialized successfully!')
 "
 
 # Test voice control (if enabled)
-python3 -c "
+python -c "
 from src.voice_control import VoiceControl
 vc = VoiceControl(None, None)
 print('Voice control initialized successfully!')
@@ -211,7 +217,10 @@ hostname -I
 ### Start Bible Clock
 ```bash
 cd Bible-Clockv2
-python3 main.py
+# Activate virtual environment
+source venv/bin/activate
+# Start Bible Clock
+python main.py
 ```
 
 ### Run as System Service (Recommended)
@@ -228,7 +237,7 @@ After=network.target
 Type=simple
 User=pi
 WorkingDirectory=/home/pi/Bible-Clockv2
-ExecStart=/usr/bin/python3 main.py
+ExecStart=/home/pi/Bible-Clockv2/venv/bin/python main.py
 Restart=always
 RestartSec=10
 

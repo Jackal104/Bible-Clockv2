@@ -72,11 +72,23 @@ sudo raspi-config nonint do_i2c 0
 echo "✅ SPI and I2C enabled"
 echo ""
 
-# Install Python dependencies
-echo "🐍 Installing Python dependencies..."
+# Install Python dependencies in virtual environment
+echo "🐍 Setting up Python virtual environment..."
 cd "$PROJECT_DIR"
-pip3 install -r requirements-pi.txt
-echo "✅ Python dependencies installed"
+
+# Create virtual environment if it doesn't exist
+if [ ! -d "venv" ]; then
+    python3 -m venv venv
+    echo "✅ Virtual environment created"
+else
+    echo "ℹ️  Virtual environment already exists"
+fi
+
+# Activate virtual environment and install dependencies
+source venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements-pi.txt
+echo "✅ Python dependencies installed in virtual environment"
 echo ""
 
 # Prompt for hardware setup
