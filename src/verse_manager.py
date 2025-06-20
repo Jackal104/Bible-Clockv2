@@ -194,6 +194,10 @@ class VerseManager:
         else:  # time mode
             verse_data = self._get_time_based_verse()
         
+        # Add parallel translation if enabled (for all modes)
+        if self.parallel_mode and verse_data and not verse_data.get('is_summary') and not verse_data.get('is_date_event'):
+            verse_data = self._add_parallel_translation(verse_data)
+        
         # Update statistics
         self.statistics['mode_usage'][self.display_mode] += 1
         if verse_data.get('book'):
@@ -205,14 +209,18 @@ class VerseManager:
         return verse_data
     
     def _get_time_based_verse(self) -> Dict:
-        """Original time-based verse logic."""
+        """Time-based verse logic: HH:MM = Chapter:Verse, minute 00 = book summary."""
         now = datetime.now()
         hour = now.hour
         minute = now.minute
         
+        # At minute 00, show a book summary
         if minute == 0:
             return self._get_random_book_summary()
         
+        # Map 24-hour time to chapter:
+        # 00:XX = Chapter 24 (midnight hour)
+        # 01:XX = Chapter 1, 02:XX = Chapter 2, etc.
         chapter = hour if hour > 0 else 24
         verse = minute
         
@@ -221,10 +229,6 @@ class VerseManager:
             verse_data = self._get_verse_from_local_data(chapter, verse)
         if not verse_data:
             verse_data = random.choice(self.fallback_verses)
-        
-        # Add parallel translation if enabled
-        if self.parallel_mode and verse_data:
-            verse_data = self._add_parallel_translation(verse_data)
         
         return verse_data
     
