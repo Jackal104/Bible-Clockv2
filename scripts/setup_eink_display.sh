@@ -28,12 +28,23 @@ sudo apt-get install -y \
     zlib1g-dev \
     libfreetype6-dev \
     liblcms2-dev \
-    libopenjp2-7 \
-    libtiff5
+    libopenjp2-7
+
+# Get script directory and project directory
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+
+# Check if virtual environment exists
+if [ -f "$PROJECT_DIR/venv/bin/activate" ]; then
+    echo "🐍 Using existing virtual environment..."
+    source "$PROJECT_DIR/venv/bin/activate"
+else
+    echo "🐍 Installing Python dependencies system-wide..."
+fi
 
 # Install Python dependencies
-echo "🐍 Installing Python dependencies..."
-pip3 install RPi.GPIO spidev numpy
+echo "📦 Installing Python dependencies..."
+pip install RPi.GPIO spidev numpy
 
 # Clone and install IT8951 library
 echo "📚 Installing IT8951 library..."
@@ -44,11 +55,11 @@ fi
 
 git clone https://github.com/GregDMeyer/IT8951.git
 cd IT8951
-pip3 install .
+pip install .
 
 # Verify installation
 echo "✅ Verifying installation..."
-python3 -c "
+python -c "
 try:
     from IT8951.display import AutoEPDDisplay
     print('✅ IT8951 library installed successfully')
@@ -78,7 +89,7 @@ echo "   - RST pin: GPIO 17"
 echo "   - CS pin:  GPIO 8 (SPI0 CS0)"
 echo "   - BUSY pin: GPIO 24"
 echo "3. Set SIMULATION_MODE=false in your .env file"
-echo "4. Start Bible Clock: python3 main.py"
+echo "4. Start Bible Clock: ./start_bible_clock.sh"
 echo ""
 echo "⚠️  Note: You may need to adjust the VCOM voltage in display_manager.py"
 echo "   based on your specific display model (-2.06V is typical)"
