@@ -100,6 +100,8 @@ if [ ! -f "$PROJECT_DIR/.env" ]; then
 # Basic Settings
 SIMULATION_MODE=false
 WEB_INTERFACE_ENABLED=true
+WEB_HOST=bible-clock
+WEB_PORT=5000
 ENABLE_VOICE=true
 
 # Display Settings
@@ -221,7 +223,15 @@ else
     echo "❌ espeak not found"
 fi
 
+# Setup hostname resolution
+echo "🌐 Setting up hostname resolution..."
+if command -v sudo &> /dev/null; then
+    "$SCRIPT_DIR/setup_hostname.sh" 2>/dev/null || echo "⚠️  Hostname setup requires manual configuration"
+else
+    echo "⚠️  Hostname setup requires sudo privileges - run setup_hostname.sh separately"
+fi
 echo ""
+
 echo "🎉 Bible Clock setup completed!"
 echo ""
 echo "📋 Next Steps:"
@@ -238,6 +248,7 @@ echo "4. Reboot: sudo reboot"
 echo "5. Start Bible Clock: python3 main.py"
 echo ""
 echo "🌐 Web interface will be available at:"
+echo "   http://bible-clock:5000"
 echo "   http://localhost:5000"
 echo "   http://$(hostname).local:5000"
 echo "   http://$(hostname -I | awk '{print $1}'):5000"

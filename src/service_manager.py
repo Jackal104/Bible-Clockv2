@@ -242,7 +242,7 @@ class ServiceManager:
             )
             
             # Get web interface configuration
-            host = os.getenv('WEB_HOST', '0.0.0.0')
+            host = os.getenv('WEB_HOST', 'bible-clock')
             port = int(os.getenv('WEB_PORT', '5000'))
             debug = os.getenv('WEB_DEBUG', 'false').lower() == 'true'
             

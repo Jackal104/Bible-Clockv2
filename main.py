@@ -173,9 +173,11 @@ Examples:
         logger.info(f"Voice control: {'disabled' if args.disable_voice else 'auto'}")
         
         if not args.disable_web:
-            web_host = os.getenv('WEB_HOST', '0.0.0.0')
+            web_host = os.getenv('WEB_HOST', 'bible-clock')
             web_port = os.getenv('WEB_PORT', '5000')
             logger.info(f"Web interface will be available at http://{web_host}:{web_port}")
+            if web_host == 'bible-clock':
+                logger.info(f"Also accessible at http://localhost:{web_port} and http://127.0.0.1:{web_port}")
         
         # Run the service
         service_manager.run()
