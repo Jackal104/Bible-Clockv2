@@ -202,14 +202,6 @@
                             </select>
                         </div>
 
-                        <!-- Parallel Translation Settings (shown when parallel mode is selected) -->
-                        <div id="parallel-settings" class="hidden">
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Secondary Translation</label>
-                            <select id="secondary-translation" class="form-select" onchange="updateSecondaryTranslation()">
-                                <!-- Options populated dynamically to prevent duplicates -->
-                            </select>
-                        </div>
-
                         <!-- Primary Translation -->
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Primary Bible Translation</label>
@@ -219,6 +211,14 @@
                                 <option value="asv">American Standard Version (ASV)</option>
                                 <option value="bbe">Bible in Basic English (BBE)</option>
                                 <option value="ylt">Young's Literal Translation (YLT)</option>
+                            </select>
+                        </div>
+
+                        <!-- Parallel Translation Settings (shown when parallel mode is selected) -->
+                        <div id="parallel-settings" class="hidden">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Secondary Translation</label>
+                            <select id="secondary-translation" class="form-select" onchange="updateSecondaryTranslation()">
+                                <!-- Options populated dynamically to prevent duplicates -->
                             </select>
                         </div>
 
@@ -240,58 +240,47 @@
                     </div>
                 </div>
 
-                <!-- Background Controls -->
+                <!-- Quick Background Controls -->
                 <div>
                     <h4 class="text-lg font-medium text-gray-900 mb-4">Background</h4>
                     <div class="space-y-3">
                         <select id="background" class="form-select" onchange="updateBackground(); updateUnifiedPreview()">
                             <option value="0">Background 1</option>
                         </select>
-                        <div class="grid grid-cols-2 gap-2">
-                            <button onclick="cycleBackground(); updateUnifiedPreview()" class="btn-secondary justify-center">
-                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                                </svg>
-                                Cycle
-                            </button>
-                            <button onclick="randomizeBackground(); updateUnifiedPreview()" class="btn-secondary justify-center">
-                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path>
-                                </svg>
-                                Random
-                            </button>
-                        </div>
+                        <button onclick="cycleBackground(); updateUnifiedPreview()" class="btn-secondary w-full justify-center">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                            </svg>
+                            Next Background
+                        </button>
+                        <p class="text-xs text-gray-500">
+                            For advanced background options, auto-cycling, and thumbnails, visit 
+                            <a href="/settings" class="text-bible-accent hover:text-bible-dark font-medium">Settings →</a>
+                        </p>
                     </div>
                 </div>
             </div>
 
             <!-- Right Column: Font & Preview -->
             <div class="space-y-6">
-                <!-- Font Size Controls -->
+                <!-- Quick Font Controls -->
                 <div>
-                    <h4 class="text-lg font-medium text-gray-900 mb-4">Font Sizes</h4>
-                    <div class="space-y-4">
-                        <!-- Verse Size -->
-                        <div class="bg-gray-50 p-3 rounded-lg">
-                            <div class="flex items-center justify-between mb-2">
-                                <label class="text-sm font-medium text-gray-700">Verse Size</label>
-                                <span id="verse-size-value" class="text-sm text-bible-accent font-semibold">80px</span>
-                            </div>
-                            <input type="range" id="verse-size" class="w-full" min="18" max="120" value="80" 
+                    <h4 class="text-lg font-medium text-gray-900 mb-4">Font Adjustment</h4>
+                    <div class="space-y-3">
+                        <!-- Verse Size - Simple -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Verse Size: <span id="verse-size-value" class="text-bible-accent font-semibold">80px</span>
+                            </label>
+                            <input type="range" id="verse-size" class="w-full" min="40" max="120" value="80" 
                                    oninput="updateFontSizeValue('verse'); updateFontSize('verse_size', this.value); setTimeout(updateUnifiedPreview, 300)">
                         </div>
                         
-                        <!-- Reference Size -->
-                        <div class="bg-gray-50 p-3 rounded-lg">
-                            <div class="flex items-center justify-between mb-2">
-                                <label class="text-sm font-medium text-gray-700">Reference Size</label>
-                                <span id="reference-size-value" class="text-sm text-bible-accent font-semibold">32px</span>
-                            </div>
-                            <input type="range" id="reference-size" class="w-full" min="16" max="48" value="32" 
-                                   oninput="updateFontSizeValue('reference'); updateFontSize('reference_size', this.value); setTimeout(updateUnifiedPreview, 300)">
-                        </div>
+                        <p class="text-xs text-gray-500">
+                            For detailed font controls and more options, visit 
+                            <a href="/settings" class="text-bible-accent hover:text-bible-dark font-medium">Settings →</a>
+                        </p>
                     </div>
-                    
                 </div>
 
                 <!-- Action Buttons -->
@@ -534,17 +523,22 @@ function updateDisplayMode() {
     const mode = document.getElementById('display-mode').value;
     const parallelSettings = document.getElementById('parallel-settings');
     
-    // Show/hide parallel settings
+    // Show/hide parallel settings and update both settings in one call
     if (mode === 'parallel') {
         parallelSettings.classList.remove('hidden');
-        // Enable parallel mode
-        updateSetting('parallel_mode', true);
-        updateSetting('display_mode', 'time'); // Keep time mode but enable parallel
+        updateSecondaryTranslationOptions();
+        // Enable parallel mode and set display mode to time (combined call)
+        updateMultipleSettings({
+            'parallel_mode': true,
+            'display_mode': 'time'
+        });
     } else {
         parallelSettings.classList.add('hidden');
-        // Disable parallel mode
-        updateSetting('parallel_mode', false);
-        updateSetting('display_mode', mode);
+        // Disable parallel mode and update display mode (combined call)
+        updateMultipleSettings({
+            'parallel_mode': false,
+            'display_mode': mode
+        });
     }
     
     // Update unified preview when mode changes
@@ -664,6 +658,73 @@ function updateSetting(key, value) {
         console.error('Settings network error:', error);
         showError('Network error: ' + error.message);
     });
+}
+
+function updateMultipleSettings(settings) {
+    fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showSuccess('Settings updated');
+            // Reload verse if display mode or translation changed
+            if (settings.display_mode || settings.translation || settings.parallel_mode) {
+                setTimeout(loadCurrentVerse, 500);
+            }
+        } else {
+            console.error('Settings update failed:', data);
+            showError('Failed to update settings: ' + (data.error || 'Server error'));
+        }
+    })
+    .catch(error => {
+        console.error('Settings network error:', error);
+        showError('Network error: ' + error.message);
+    });
+}
+
+function updateDashboardCycling() {
+    const enabled = document.getElementById('dash-cycling-enabled').checked;
+    const interval = parseInt(document.getElementById('dash-cycling-interval').value);
+    const intervalSection = document.getElementById('dash-cycling-interval-section');
+    
+    // Show/hide interval section
+    if (enabled) {
+        intervalSection.classList.remove('hidden');
+    } else {
+        intervalSection.classList.add('hidden');
+    }
+    
+    // Send settings to backend
+    fetch('/api/background/cycling', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            enabled: enabled,
+            interval_minutes: interval
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const intervalText = enabled ? getDashIntervalText(interval) : '';
+            showSuccess(enabled ? `Auto-cycling enabled (${intervalText})` : 'Auto-cycling disabled');
+        } else {
+            showError('Failed to update cycling settings');
+        }
+    })
+    .catch(error => showError('Network error updating cycling settings'));
+}
+
+function getDashIntervalText(minutes) {
+    if (minutes < 60) {
+        return `${minutes}min`;
+    } else if (minutes < 1440) {
+        const hours = minutes / 60;
+        return `${hours}h`;
+    }
 }
 
 function cycleBackground() {

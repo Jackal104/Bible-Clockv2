@@ -20,22 +20,35 @@
                 <!-- Display Mode -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Display Mode</label>
-                    <select id="display-mode" class="form-select" onchange="updateSetting('display_mode')">
+                    <select id="display-mode" class="form-select" onchange="updateDisplayMode()">
                         <option value="time">Time-based (Hour:Minute = Chapter:Verse)</option>
                         <option value="date">Date-based (Biblical Calendar Events)</option>
                         <option value="random">Random Verses</option>
+                        <option value="parallel">Parallel Translations</option>
                     </select>
                     <p class="text-sm text-gray-500 mt-1">Choose how verses are selected for display</p>
                 </div>
 
-                <!-- Translation -->
+                <!-- Primary Translation -->
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Bible Translation</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Primary Bible Translation</label>
                     <select id="translation" class="form-select" onchange="updateSetting('translation')">
                         <option value="kjv">King James Version (KJV)</option>
                         <option value="web">World English Bible (WEB)</option>
+                        <option value="asv">American Standard Version (ASV)</option>
+                        <option value="bbe">Bible in Basic English (BBE)</option>
+                        <option value="ylt">Young's Literal Translation (YLT)</option>
                     </select>
                     <p class="text-sm text-gray-500 mt-1">Select your preferred Bible translation</p>
+                </div>
+
+                <!-- Parallel Translation Settings (shown when parallel mode is selected) -->
+                <div id="parallel-settings" class="hidden">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Secondary Bible Translation</label>
+                    <select id="secondary-translation" class="form-select" onchange="updateSetting('secondary_translation')">
+                        <!-- Options populated dynamically to prevent duplicates -->
+                    </select>
+                    <p class="text-sm text-gray-500 mt-1">Used for parallel translation mode (auto-filtered to prevent duplicates)</p>
                 </div>
 
                 <!-- Auto Refresh -->
@@ -58,19 +71,64 @@
             <h3 class="text-lg font-semibold text-bible-dark mb-4">Visual Settings</h3>
             
             <div class="space-y-6">
-                <!-- Background -->
+                <!-- Background Selection -->
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Background Image</label>
-                    <div id="background-grid" class="grid grid-cols-3 gap-3 mb-3">
-                        <!-- Background options will be loaded here -->
+                    <div class="flex justify-between items-center mb-3">
+                        <label class="block text-sm font-medium text-gray-700">Background Images</label>
+                        <div class="text-sm text-gray-500">
+                            <span id="bg-page-info">Page 1 of 5</span>
+                        </div>
                     </div>
-                    <div class="flex space-x-2">
-                        <button onclick="cycleBackground()" class="btn-secondary flex-1">
-                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                    
+                    <!-- Thumbnail Gallery (6 per page) -->
+                    <div id="background-gallery" class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
+                        <!-- Background thumbnails will be loaded here -->
+                    </div>
+                    
+                    <!-- Pagination Controls -->
+                    <div class="flex justify-between items-center mb-4">
+                        <button id="bg-prev-btn" onclick="changePage(-1)" class="btn-secondary" disabled>
+                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
                             </svg>
-                            Cycle Background
+                            Previous
                         </button>
+                        <div class="flex space-x-1" id="bg-page-dots">
+                            <!-- Page dots will be generated here -->
+                        </div>
+                        <button id="bg-next-btn" onclick="changePage(1)" class="btn-secondary">
+                            Next
+                            <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    
+                    <!-- Background Cycling Settings -->
+                    <div class="border-t pt-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <div>
+                                <label class="text-sm font-medium text-gray-700">Auto-Cycle Backgrounds</label>
+                                <p class="text-xs text-gray-500">Automatically change background at set intervals</p>
+                            </div>
+                            <label class="toggle">
+                                <input type="checkbox" id="cycling-enabled" onchange="updateCyclingSettings()">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        
+                        <div id="cycling-interval-section" class="hidden">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Cycling Interval</label>
+                            <select id="cycling-interval" class="form-select" onchange="updateCyclingSettings()">
+                                <option value="5">Every 5 minutes</option>
+                                <option value="15">Every 15 minutes</option>
+                                <option value="30" selected>Every 30 minutes</option>
+                                <option value="60">Every hour</option>
+                                <option value="180">Every 3 hours</option>
+                                <option value="360">Every 6 hours</option>
+                                <option value="720">Every 12 hours</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
 
@@ -296,13 +354,25 @@ function loadSettings() {
 }
 
 function populateSettingsForm(settings) {
-    document.getElementById('display-mode').value = settings.display_mode || 'time';
+    // Handle parallel mode display
+    if (settings.parallel_mode) {
+        document.getElementById('display-mode').value = 'parallel';
+        document.getElementById('parallel-settings').classList.remove('hidden');
+    } else {
+        document.getElementById('display-mode').value = settings.display_mode || 'time';
+        document.getElementById('parallel-settings').classList.add('hidden');
+    }
+    
     document.getElementById('translation').value = settings.translation || 'kjv';
     document.getElementById('auto-refresh').value = settings.auto_refresh || '60';
     document.getElementById('voice-enabled').checked = settings.voice_enabled || false;
     document.getElementById('api-url').value = settings.api_url || 'https://bible-api.com';
     document.getElementById('timeout').value = settings.timeout || 10;
     document.getElementById('retry-attempts').value = settings.retry_attempts || 3;
+    
+    // Populate secondary translation options and set value
+    updateSecondaryTranslationOptions();
+    document.getElementById('secondary-translation').value = settings.secondary_translation || 'web';
     
     // Font sizes
     if (settings.font_sizes) {
@@ -316,35 +386,169 @@ function populateSettingsForm(settings) {
     }
 }
 
+function updateSecondaryTranslationOptions() {
+    const primaryTranslation = document.getElementById('translation').value;
+    const secondarySelect = document.getElementById('secondary-translation');
+    const currentSecondary = secondarySelect.value;
+    
+    // All available translations (only working ones)
+    const allTranslations = [
+        { value: 'kjv', label: 'King James Version (KJV)' },
+        { value: 'web', label: 'World English Bible (WEB)' },
+        { value: 'asv', label: 'American Standard Version (ASV)' },
+        { value: 'bbe', label: 'Bible in Basic English (BBE)' },
+        { value: 'ylt', label: 'Young\'s Literal Translation (YLT)' }
+    ];
+    
+    // Clear current options
+    secondarySelect.innerHTML = '';
+    
+    // Add options except the primary translation
+    allTranslations.forEach(trans => {
+        if (trans.value !== primaryTranslation) {
+            const option = document.createElement('option');
+            option.value = trans.value;
+            option.textContent = trans.label;
+            option.selected = trans.value === currentSecondary;
+            secondarySelect.appendChild(option);
+        }
+    });
+}
+
+function updateDisplayMode() {
+    const mode = document.getElementById('display-mode').value;
+    const parallelSettings = document.getElementById('parallel-settings');
+    
+    // Show/hide parallel settings
+    if (mode === 'parallel') {
+        parallelSettings.classList.remove('hidden');
+        updateSecondaryTranslationOptions();
+        // Enable parallel mode and set display mode to time (combined call)
+        updateMultipleSettings({
+            'parallel_mode': true,
+            'display_mode': 'time'
+        });
+    } else {
+        parallelSettings.classList.add('hidden');
+        // Disable parallel mode and update display mode (combined call)
+        updateMultipleSettings({
+            'parallel_mode': false,
+            'display_mode': mode
+        });
+    }
+}
+
+function updateMultipleSettings(settings) {
+    fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showSuccess('Settings updated');
+            Object.keys(settings).forEach(key => {
+                currentSettings[key] = settings[key];
+            });
+        } else {
+            showError('Failed to update settings');
+        }
+    })
+    .catch(error => showError('Network error updating settings'));
+}
+
+// Background gallery state
+let allBackgrounds = [];
+let currentPage = 0;
+const backgroundsPerPage = 6;
+
 function loadBackgrounds() {
     fetch('/api/backgrounds')
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                displayBackgroundGrid(data.data.backgrounds || []);
+                allBackgrounds = data.data.backgrounds || [];
+                // Load cycling settings
+                if (data.data.cycling) {
+                    updateCyclingUI(data.data.cycling);
+                }
+                displayBackgroundGallery();
             }
         })
         .catch(error => console.error('Background load error:', error));
 }
 
-function displayBackgroundGrid(backgrounds) {
-    const grid = document.getElementById('background-grid');
-    grid.innerHTML = '';
+function displayBackgroundGallery() {
+    const gallery = document.getElementById('background-gallery');
+    const totalPages = Math.ceil(allBackgrounds.length / backgroundsPerPage);
     
-    backgrounds.forEach(bg => {
+    // Update page info
+    document.getElementById('bg-page-info').textContent = `Page ${currentPage + 1} of ${totalPages}`;
+    
+    // Clear gallery
+    gallery.innerHTML = '';
+    
+    // Calculate start and end indices
+    const startIndex = currentPage * backgroundsPerPage;
+    const endIndex = Math.min(startIndex + backgroundsPerPage, allBackgrounds.length);
+    
+    // Display backgrounds for current page
+    for (let i = startIndex; i < endIndex; i++) {
+        const bg = allBackgrounds[i];
         const div = document.createElement('div');
-        div.className = `relative cursor-pointer border-2 rounded-lg p-2 ${bg.current ? 'border-bible-accent' : 'border-gray-200'} hover:border-bible-accent transition-colors`;
+        div.className = `relative cursor-pointer border-2 rounded-lg overflow-hidden ${bg.current ? 'border-bible-accent' : 'border-gray-200'} hover:border-bible-accent transition-colors`;
         div.onclick = () => selectBackground(bg.index);
         
         div.innerHTML = `
-            <div class="aspect-square bg-gradient-to-br from-gray-100 to-gray-200 rounded flex items-center justify-center">
-                <span class="text-sm font-medium text-gray-600">${bg.name}</span>
+            <div class="aspect-square relative">
+                <img src="${bg.thumbnail}" alt="${bg.name}" class="w-full h-full object-cover">
+                <div class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-60 text-white text-xs p-2">
+                    <div class="font-medium truncate">${bg.name}</div>
+                </div>
+                ${bg.current ? '<div class="absolute top-2 right-2 w-4 h-4 bg-bible-accent rounded-full border-2 border-white"></div>' : ''}
             </div>
-            ${bg.current ? '<div class="absolute top-1 right-1 w-3 h-3 bg-bible-accent rounded-full"></div>' : ''}
         `;
         
-        grid.appendChild(div);
-    });
+        gallery.appendChild(div);
+    }
+    
+    // Update pagination controls
+    updatePaginationControls(totalPages);
+}
+
+function updatePaginationControls(totalPages) {
+    const prevBtn = document.getElementById('bg-prev-btn');
+    const nextBtn = document.getElementById('bg-next-btn');
+    const pageDots = document.getElementById('bg-page-dots');
+    
+    // Update button states
+    prevBtn.disabled = currentPage === 0;
+    nextBtn.disabled = currentPage === totalPages - 1;
+    
+    // Generate page dots
+    pageDots.innerHTML = '';
+    for (let i = 0; i < totalPages; i++) {
+        const dot = document.createElement('button');
+        dot.className = `w-2 h-2 rounded-full ${i === currentPage ? 'bg-bible-accent' : 'bg-gray-300'} hover:bg-bible-accent transition-colors`;
+        dot.onclick = () => goToPage(i);
+        pageDots.appendChild(dot);
+    }
+}
+
+function changePage(direction) {
+    const totalPages = Math.ceil(allBackgrounds.length / backgroundsPerPage);
+    const newPage = currentPage + direction;
+    
+    if (newPage >= 0 && newPage < totalPages) {
+        currentPage = newPage;
+        displayBackgroundGallery();
+    }
+}
+
+function goToPage(page) {
+    currentPage = page;
+    displayBackgroundGallery();
 }
 
 function loadFonts() {
@@ -373,15 +577,65 @@ function populateFontSelect(fonts) {
 
 function selectBackground(index) {
     updateSetting('background_index', index);
-    loadBackgrounds(); // Reload to update selection
+    // Update current selection in local array
+    allBackgrounds.forEach(bg => bg.current = bg.index === index);
+    displayBackgroundGallery(); // Refresh display
 }
 
-function cycleBackground() {
-    const grid = document.getElementById('background-grid');
-    const current = Array.from(grid.children).findIndex(child => 
-        child.querySelector('.bg-bible-accent'));
-    const next = (current + 1) % grid.children.length;
-    selectBackground(next);
+function updateCyclingSettings() {
+    const enabled = document.getElementById('cycling-enabled').checked;
+    const interval = parseInt(document.getElementById('cycling-interval').value);
+    const intervalSection = document.getElementById('cycling-interval-section');
+    
+    // Show/hide interval section
+    if (enabled) {
+        intervalSection.classList.remove('hidden');
+    } else {
+        intervalSection.classList.add('hidden');
+    }
+    
+    // Send settings to backend
+    fetch('/api/background/cycling', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            enabled: enabled,
+            interval_minutes: interval
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showSuccess(enabled ? `Background cycling enabled (${getIntervalText(interval)})` : 'Background cycling disabled');
+        } else {
+            showError('Failed to update cycling settings');
+        }
+    })
+    .catch(error => showError('Network error updating cycling settings'));
+}
+
+function updateCyclingUI(cyclingSettings) {
+    document.getElementById('cycling-enabled').checked = cyclingSettings.enabled;
+    document.getElementById('cycling-interval').value = cyclingSettings.interval_minutes;
+    
+    const intervalSection = document.getElementById('cycling-interval-section');
+    if (cyclingSettings.enabled) {
+        intervalSection.classList.remove('hidden');
+    } else {
+        intervalSection.classList.add('hidden');
+    }
+}
+
+function getIntervalText(minutes) {
+    if (minutes < 60) {
+        return `every ${minutes} minutes`;
+    } else if (minutes < 1440) {
+        const hours = minutes / 60;
+        return `every ${hours} hour${hours > 1 ? 's' : ''}`;
+    } else {
+        const days = minutes / 1440;
+        return `every ${days} day${days > 1 ? 's' : ''}`;
+    }
 }
 
 function updateSetting(key, valueOverride = null) {
@@ -401,6 +655,16 @@ function updateSetting(key, valueOverride = null) {
     const data = {};
     data[key] = value;
     
+    // Force display update for visual changes (background, font, etc.)
+    if (['background_index', 'font', 'verse_size', 'reference_size'].includes(key)) {
+        data.update_display = true;
+    }
+    
+    // Update secondary translation options if primary translation changed
+    if (key === 'translation') {
+        updateSecondaryTranslationOptions();
+    }
+    
     fetch('/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -409,7 +673,12 @@ function updateSetting(key, valueOverride = null) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            showSuccess('Setting updated');
+            // Show different messages for visual vs non-visual changes
+            if (['background_index', 'font', 'verse_size', 'reference_size'].includes(key)) {
+                showSuccess('Setting updated and display refreshed');
+            } else {
+                showSuccess('Setting updated');
+            }
             currentSettings[key] = value;
         } else {
             showError('Failed to update setting');
@@ -465,6 +734,11 @@ function showPreviewError() {
 }
 
 function applySettings() {
+    // Show confirmation modal
+    if (!confirm('Apply all current settings and refresh the display? This will immediately update the Bible Clock.')) {
+        return;
+    }
+    
     const settings = {
         display_mode: document.getElementById('display-mode').value,
         translation: document.getElementById('translation').value,
@@ -474,6 +748,12 @@ function applySettings() {
         update_display: true
     };
     
+    // Add font sizes if they've been modified
+    const verseSize = document.getElementById('verse-size').value;
+    const referenceSize = document.getElementById('reference-size').value;
+    if (verseSize) settings.verse_size = parseInt(verseSize);
+    if (referenceSize) settings.reference_size = parseInt(referenceSize);
+    
     fetch('/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -482,10 +762,15 @@ function applySettings() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            showSuccess('All settings applied successfully');
-            setTimeout(() => window.location.href = '/', 1000);
+            showSuccess('All settings applied successfully! Display updated.');
+            // Show a brief success message before optional redirect
+            setTimeout(() => {
+                if (confirm('Settings applied successfully! Return to dashboard?')) {
+                    window.location.href = '/';
+                }
+            }, 1500);
         } else {
-            showError('Failed to apply settings');
+            showError('Failed to apply settings: ' + (data.error || 'Unknown error'));
         }
     })
     .catch(error => showError('Network error applying settings'));
@@ -536,7 +821,7 @@ function importSettings() {
 }
 
 function resetSettings() {
-    if (!confirm('Are you sure you want to reset all settings to defaults? This cannot be undone.')) {
+    if (!confirm('Are you sure you want to reset ALL settings to defaults? This will:\n\n• Reset display mode, translation, and fonts\n• Reset all background and timing settings\n• Update the Bible Clock display immediately\n\nThis action cannot be undone.')) {
         return;
     }
     
@@ -547,6 +832,8 @@ function resetSettings() {
         font: 'default',
         auto_refresh: 60,
         voice_enabled: false,
+        verse_size: 80,
+        reference_size: 32,
         update_display: true
     };
     
@@ -558,19 +845,43 @@ function resetSettings() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            showSuccess('Settings reset to defaults');
-            setTimeout(() => location.reload(), 1000);
+            showSuccess('All settings reset to defaults successfully! Display updated.');
+            setTimeout(() => {
+                if (confirm('Settings reset complete! Reload the page to see updated values?')) {
+                    location.reload();
+                }
+            }, 2000);
         } else {
-            showError('Failed to reset settings');
+            showError('Failed to reset settings: ' + (data.error || 'Unknown error'));
         }
     })
     .catch(error => showError('Network error resetting settings'));
 }
 
 function showSuccess(message) {
-    // Simple success feedback - could implement toast notifications
-    console.log('Success:', message);
-    // Could add visual feedback here
+    // Create success notification
+    const notification = document.createElement('div');
+    notification.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 transform transition-all duration-300';
+    notification.innerHTML = `
+        <div class="flex items-center">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+            ${message}
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Auto-remove after 3 seconds
+    setTimeout(() => {
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 300);
+    }, 3000);
 }
 
 function updateFontSizePreview() {
@@ -587,9 +898,29 @@ function updateFontSizePreview() {
 }
 
 function showError(message) {
-    // Simple error feedback - could implement toast notifications
-    console.error('Error:', message);
-    // Could add visual feedback here
+    // Create error notification
+    const notification = document.createElement('div');
+    notification.className = 'fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 transform transition-all duration-300';
+    notification.innerHTML = `
+        <div class="flex items-center">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            ${message}
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Auto-remove after 5 seconds (longer for errors)
+    setTimeout(() => {
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 300);
+    }, 5000);
 }
 </script>
 {% endblock %}

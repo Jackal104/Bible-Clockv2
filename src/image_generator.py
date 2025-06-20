@@ -26,6 +26,11 @@ class ImageGenerator:
         self.verse_size = int(os.getenv('VERSE_FONT_SIZE', '80'))  # Larger default
         self.reference_size = int(os.getenv('REFERENCE_FONT_SIZE', '32'))
         
+        # Background cycling settings
+        self.background_cycling_enabled = False
+        self.background_cycling_interval = 30  # minutes
+        self.last_background_cycle = datetime.now()
+        
         self._discover_fonts()
         
         # Load fonts
@@ -76,38 +81,53 @@ class ImageGenerator:
                     self.logger.warning(f"Could not load font {font_file}: {e}")
     
     def _load_backgrounds(self):
-        """Load background images."""
+        """Load background images dynamically from images directory."""
         self.backgrounds = []
+        self.background_names = []
         background_dir = Path('images')
         
-        background_files = [
-            'subtle_cross.png',
-            'minimalist_frame.png',
-            'parchment.png',
-            'stained_glass.png',
-            'nature_border.png',
-            'geometric.png',
-            'watercolor.png',
-            'classic_scroll.png'
-        ]
+        if not background_dir.exists():
+            self.logger.warning(f"Background directory {background_dir} does not exist")
+            self.backgrounds.append(self._create_default_background())
+            self.background_names.append("Default Background")
+            return
         
-        for bg_file in background_files:
-            bg_path = background_dir / bg_file
-            if bg_path.exists():
-                try:
-                    bg_image = Image.open(bg_path)
-                    # Resize to display dimensions
-                    bg_image = bg_image.resize((self.width, self.height), Image.Resampling.LANCZOS)
-                    # Convert to grayscale for e-ink
-                    bg_image = bg_image.convert('L')
-                    self.backgrounds.append(bg_image)
-                    self.logger.debug(f"Loaded background: {bg_file}")
-                except Exception as e:
-                    self.logger.warning(f"Failed to load background {bg_file}: {e}")
+        # Get all PNG files in the images directory, sorted by filename
+        background_files = sorted(background_dir.glob('*.png'))
+        
+        if not background_files:
+            self.logger.warning("No PNG background files found in images directory")
+            self.backgrounds.append(self._create_default_background())
+            self.background_names.append("Default Background")
+            return
+        
+        for bg_path in background_files:
+            try:
+                bg_image = Image.open(bg_path)
+                # Resize to display dimensions
+                bg_image = bg_image.resize((self.width, self.height), Image.Resampling.LANCZOS)
+                # Convert to grayscale for e-ink
+                bg_image = bg_image.convert('L')
+                self.backgrounds.append(bg_image)
+                
+                # Extract readable name from filename (remove number prefix and extension)
+                name = bg_path.stem
+                if '_' in name and name.split('_')[0].isdigit():
+                    # Remove number prefix (e.g., "01_Golden_Cross_Traditional" -> "Golden Cross Traditional")
+                    name = '_'.join(name.split('_')[1:]).replace('_', ' ')
+                else:
+                    name = name.replace('_', ' ')
+                
+                self.background_names.append(name)
+                self.logger.debug(f"Loaded background: {bg_path.name} as '{name}'")
+                
+            except Exception as e:
+                self.logger.warning(f"Failed to load background {bg_path.name}: {e}")
         
         if not self.backgrounds:
-            # Create a simple default background
+            # Create a simple default background if none loaded
             self.backgrounds.append(self._create_default_background())
+            self.background_names.append("Default Background")
             self.logger.info("Using default background")
         else:
             self.logger.info(f"Loaded {len(self.backgrounds)} background images")
@@ -383,10 +403,15 @@ class ImageGenerator:
     
     def get_current_background_info(self) -> Dict:
         """Get information about current background."""
+        if hasattr(self, 'background_names') and self.background_names:
+            current_name = self.background_names[self.current_background_index]
+        else:
+            current_name = f"Background {self.current_background_index + 1}"
+            
         return {
             'current_index': self.current_background_index,
             'total_backgrounds': len(self.backgrounds),
-            'current_name': f"Background {self.current_background_index + 1}"
+            'current_name': current_name
         }
     
     def get_available_fonts(self) -> List[str]:
@@ -433,12 +458,22 @@ class ImageGenerator:
         return None
     
     def get_available_backgrounds(self) -> List[Dict]:
-        """Get available backgrounds with metadata."""
+        """Get available backgrounds with metadata and thumbnails."""
         bg_info = []
         for i, bg in enumerate(self.backgrounds):
+            if hasattr(self, 'background_names') and self.background_names and i < len(self.background_names):
+                name = self.background_names[i]
+            else:
+                name = f"Background {i + 1}"
+            
+            # Generate thumbnail filename
+            bg_filename = f"{i+1:02d}_{name.replace(' ', '_')}.png"
+            thumb_filename = f"thumb_{bg_filename.replace('.png', '.jpg')}"
+            
             bg_info.append({
                 'index': i,
-                'name': f"Background {i + 1}",
+                'name': name,
+                'thumbnail': f"/static/thumbnails/{thumb_filename}",
                 'current': i == self.current_background_index
             })
         return bg_info
@@ -461,10 +496,50 @@ class ImageGenerator:
     
     def get_current_background_info(self) -> Dict:
         """Get current background information."""
+        if hasattr(self, 'background_names') and self.background_names and self.current_background_index < len(self.background_names):
+            name = self.background_names[self.current_background_index]
+        else:
+            name = f"Background {self.current_background_index + 1}"
+            
         return {
             'index': self.current_background_index,
-            'name': f"Background {self.current_background_index + 1}",
+            'name': name,
             'total': len(self.backgrounds)
+        }
+    
+    def set_background_cycling(self, enabled: bool, interval_minutes: int = 30):
+        """Configure background cycling."""
+        self.background_cycling_enabled = enabled
+        self.background_cycling_interval = interval_minutes
+        if enabled:
+            self.last_background_cycle = datetime.now()
+            self.logger.info(f"Background cycling enabled: every {interval_minutes} minutes")
+        else:
+            self.logger.info("Background cycling disabled")
+    
+    def check_background_cycling(self):
+        """Check if it's time to cycle background and do it if needed."""
+        if not self.background_cycling_enabled:
+            return False
+            
+        now = datetime.now()
+        time_diff = (now - self.last_background_cycle).total_seconds() / 60  # minutes
+        
+        if time_diff >= self.background_cycling_interval:
+            self.cycle_background()
+            self.last_background_cycle = now
+            self.logger.info(f"Auto-cycled background to {self.current_background_index + 1}")
+            return True
+        
+        return False
+    
+    def get_cycling_settings(self) -> Dict:
+        """Get current background cycling settings."""
+        return {
+            'enabled': self.background_cycling_enabled,
+            'interval_minutes': self.background_cycling_interval,
+            'next_cycle_in_minutes': max(0, self.background_cycling_interval - 
+                                       int((datetime.now() - self.last_background_cycle).total_seconds() / 60))
         }
     
     def get_available_fonts(self) -> List[Dict]:

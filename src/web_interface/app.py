@@ -174,9 +174,11 @@ def create_app(verse_manager, image_generator, display_manager, service_manager,
     
     @app.route('/api/backgrounds', methods=['GET'])
     def get_backgrounds():
-        """Get available backgrounds with previews."""
+        """Get available backgrounds with previews and cycling settings."""
         try:
             backgrounds = app.image_generator.get_background_info()
+            cycling_settings = app.image_generator.get_cycling_settings()
+            backgrounds['cycling'] = cycling_settings
             return jsonify({'success': True, 'data': backgrounds})
         except Exception as e:
             app.logger.error(f"Backgrounds API error: {e}")
@@ -259,6 +261,25 @@ def create_app(verse_manager, image_generator, display_manager, service_manager,
             })
         except Exception as e:
             app.logger.error(f"Background randomize error: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    @app.route('/api/background/cycling', methods=['POST'])
+    def set_background_cycling():
+        """Configure background cycling settings."""
+        try:
+            data = request.get_json()
+            enabled = data.get('enabled', False)
+            interval = data.get('interval_minutes', 30)
+            
+            app.image_generator.set_background_cycling(enabled, interval)
+            
+            return jsonify({
+                'success': True,
+                'message': 'Background cycling updated',
+                'settings': app.image_generator.get_cycling_settings()
+            })
+        except Exception as e:
+            app.logger.error(f"Background cycling error: {e}")
             return jsonify({'success': False, 'error': str(e)}), 500
     
     @app.route('/api/preview', methods=['POST'])
