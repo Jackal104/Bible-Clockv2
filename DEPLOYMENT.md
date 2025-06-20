@@ -18,7 +18,11 @@ python main.py
 
 ### Raspberry Pi Production Deployment
 ```bash
-# System dependencies first
+# Clone repository
+git clone https://github.com/Jackal104/Bible-Clockv2.git
+cd Bible-Clockv2
+
+# Install system dependencies
 sudo apt-get update
 sudo apt-get install -y espeak espeak-data alsa-utils portaudio19-dev python3-dev build-essential
 
@@ -27,16 +31,24 @@ sudo raspi-config
 # Navigate to Interface Options → SPI → Enable
 # Navigate to Interface Options → I2C → Enable (if using ReSpeaker HAT)
 
-# Clone and install
-git clone https://github.com/Jackal104/Bible-Clockv2.git
-cd Bible-Clockv2
+# Install Python dependencies
 pip install -r requirements-pi.txt
+
+# Install hardware drivers
+# For E-ink display:
+./scripts/setup_eink_display.sh
+
+# For ReSpeaker HAT (optional):
+./scripts/setup_respeaker.sh
 
 # Configure environment
 cp .env.example .env
 # Edit .env with your settings
 
-# Run
+# Reboot after driver installation
+sudo reboot
+
+# Run Bible Clock
 python main.py
 ```
 
@@ -73,6 +85,16 @@ pip install RPi.GPIO spidev
 - Waveshare IT8951 compatible display
 - Connect via SPI interface
 - Default GPIO pins: RST(17), CS(8), BUSY(24)
+- Driver: IT8951 library (auto-installed by setup script)
+- Manual installation: `git clone https://github.com/GregDMeyer/IT8951.git && cd IT8951 && pip install .`
+
+**ReSpeaker HAT Setup (Optional - Enhanced Voice):**
+- Seeed Studio ReSpeaker 2-Mics Pi HAT
+- Connects via GPIO pins (I2C + SPI)
+- Driver: seeed-voicecard (auto-installed by setup script)
+- Manual installation: `git clone https://github.com/respeaker/seeed-voicecard.git && cd seeed-voicecard && sudo ./install.sh`
+- ALSA configuration automatically created
+- Provides superior voice recognition and audio quality
 
 ### Audio Setup Verification
 Test voice synthesis:
@@ -82,6 +104,9 @@ espeak "Hello Bible Clock"
 
 # Test Python TTS
 python -c "import pyttsx3; engine = pyttsx3.init(); engine.say('Test'); engine.runAndWait()"
+
+# Test ReSpeaker microphone (if installed)
+arecord -D hw:seeedvoicecard,0 -c 2 -r 16000 -f S16_LE test.wav
 ```
 
 ## Environment Configuration

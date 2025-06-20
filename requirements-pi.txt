@@ -12,7 +12,7 @@ psutil>=5.8.0
 flask>=2.0.0
 flask-cors>=3.0.10
 
-# Voice Control (Requires system audio: sudo apt-get install espeak espeak-data)
+# Voice Control (Requires system audio setup)
 pyttsx3>=2.90
 SpeechRecognition>=3.8.1
 pyaudio>=0.2.11
@@ -23,8 +23,22 @@ openai>=0.27.0
 # Raspberry Pi Hardware Dependencies
 RPi.GPIO>=0.7.1
 spidev>=3.5
+numpy>=1.21.0
 
-# Note: Before installing, ensure system dependencies are installed:
-# sudo apt-get update
-# sudo apt-get install -y espeak espeak-data alsa-utils portaudio19-dev python3-dev build-essential
-# sudo raspi-config  # Enable SPI and I2C interfaces
+# Note: Hardware drivers require manual installation:
+# 
+# 1. Basic system setup:
+#    sudo apt-get update
+#    sudo apt-get install -y espeak espeak-data alsa-utils portaudio19-dev python3-dev build-essential
+#    sudo raspi-config  # Enable SPI and I2C interfaces
+#
+# 2. E-ink Display (IT8951 driver):
+#    ./scripts/setup_eink_display.sh
+#    OR manually: git clone https://github.com/GregDMeyer/IT8951.git && cd IT8951 && pip install .
+#
+# 3. ReSpeaker HAT (Optional - enhanced voice):
+#    ./scripts/setup_respeaker.sh
+#    OR manually: git clone https://github.com/respeaker/seeed-voicecard.git && cd seeed-voicecard && sudo ./install.sh
+#
+# 4. After driver installation:
+#    sudo reboot
