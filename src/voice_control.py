@@ -29,7 +29,7 @@ class BibleClockVoiceControl:
         self.help_section_pause = int(os.getenv('HELP_SECTION_PAUSE', '2'))
         
         # ReSpeaker HAT settings
-        self.respeaker_enabled = os.getenv('RESPEAKER_ENABLED', 'false').lower() == 'true'
+        self.respeaker_enabled = os.getenv('RESPEAKER_ENABLED', 'true').lower() == 'true'
         self.respeaker_channels = int(os.getenv('RESPEAKER_CHANNELS', '6'))
         self.respeaker_sample_rate = int(os.getenv('RESPEAKER_SAMPLE_RATE', '16000'))
         self.respeaker_chunk_size = int(os.getenv('RESPEAKER_CHUNK_SIZE', '1024'))
@@ -37,7 +37,7 @@ class BibleClockVoiceControl:
         # Audio input/output controls
         self.audio_input_enabled = os.getenv('AUDIO_INPUT_ENABLED', 'true').lower() == 'true'
         self.audio_output_enabled = os.getenv('AUDIO_OUTPUT_ENABLED', 'true').lower() == 'true'
-        self.force_respeaker_output = os.getenv('FORCE_RESPEAKER_OUTPUT', 'false').lower() == 'true'
+        self.force_respeaker_output = os.getenv('FORCE_RESPEAKER_OUTPUT', 'true').lower() == 'true'
         
         # ChatGPT settings
         self.chatgpt_enabled = os.getenv('ENABLE_CHATGPT', 'false').lower() == 'true'

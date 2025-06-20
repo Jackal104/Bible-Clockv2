@@ -349,11 +349,11 @@
         
         <!-- Apply Settings Button -->
         <div class="mt-6 flex justify-center">
-            <button onclick="applyVoiceSettings()" class="btn-primary px-8 py-3">
-                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <button id="apply-voice-settings-btn" onclick="applyVoiceSettings()" class="btn-primary px-8 py-3 transition-all duration-200">
+                <svg id="apply-icon" class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                 </svg>
-                Apply Voice Settings
+                <span id="apply-text">Apply Voice Settings</span>
             </button>
         </div>
     </div>
@@ -551,6 +551,16 @@ function updateVoiceSettings() {
 function applyVoiceSettings() {
     const apiKeyField = document.getElementById('chatgpt-api-key');
     const apiKey = apiKeyField.value;
+    const button = document.getElementById('apply-voice-settings-btn');
+    const icon = document.getElementById('apply-icon');
+    const text = document.getElementById('apply-text');
+    
+    // Set loading state
+    button.disabled = true;
+    button.classList.add('opacity-75', 'cursor-not-allowed');
+    icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>';
+    icon.classList.add('animate-spin');
+    text.textContent = 'Applying Settings...';
     
     // Only include API key if it's not the masked value
     const settings = {
@@ -578,24 +588,97 @@ function applyVoiceSettings() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            showNotification('Voice settings applied successfully!', 'success');
+            // Success state
+            icon.classList.remove('animate-spin');
+            icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>';
+            text.textContent = 'Settings Applied!';
+            
+            showNotification('Voice settings applied successfully! All audio controls updated.', 'success');
+            
             // Mask the API key field if it was set
             if (apiKey && !apiKey.startsWith('•')) {
                 apiKeyField.value = '•'.repeat(20);
+                showNotification('ChatGPT API key saved securely', 'success');
             }
+            
             // Reload status to reflect changes
             setTimeout(loadVoiceStatus, 1000);
+            
+            // Reset button after 2 seconds
+            setTimeout(() => {
+                button.disabled = false;
+                button.classList.remove('opacity-75', 'cursor-not-allowed');
+                text.textContent = 'Apply Voice Settings';
+            }, 2000);
+            
         } else {
-            showNotification('Failed to apply voice settings', 'error');
+            resetButton();
+            showNotification(`Failed to apply voice settings: ${data.error || 'Unknown error'}`, 'error');
         }
     })
     .catch(error => {
-        showNotification('Network error applying settings', 'error');
+        resetButton();
+        showNotification('Network error applying settings. Please check your connection.', 'error');
+        console.error('Settings application error:', error);
     });
+    
+    function resetButton() {
+        button.disabled = false;
+        button.classList.remove('opacity-75', 'cursor-not-allowed');
+        icon.classList.remove('animate-spin');
+        icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>';
+        text.textContent = 'Apply Voice Settings';
+    }
 }
 
 function showNotification(message, type) {
-    // Simple notification - could be enhanced with toast library
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 max-w-sm transform transition-all duration-300 ${
+        type === 'success' ? 'bg-green-500 text-white' : 
+        type === 'error' ? 'bg-red-500 text-white' : 
+        'bg-blue-500 text-white'
+    }`;
+    
+    notification.innerHTML = `
+        <div class="flex items-center">
+            <div class="flex-shrink-0">
+                ${type === 'success' ? 
+                    '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>' :
+                    type === 'error' ?
+                    '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>' :
+                    '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>'
+                }
+            </div>
+            <div class="ml-3">
+                <p class="text-sm font-medium">${message}</p>
+            </div>
+            <div class="ml-4 flex-shrink-0">
+                <button onclick="this.parentElement.parentElement.parentElement.remove()" class="inline-flex text-white hover:opacity-75">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Animate in
+    setTimeout(() => {
+        notification.style.transform = 'translateX(0)';
+    }, 100);
+    
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 300);
+    }, 5000);
+    
+    // Also log to console for debugging
     console.log(`${type.toUpperCase()}: ${message}`);
 }
 </script>
