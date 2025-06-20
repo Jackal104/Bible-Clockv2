@@ -242,18 +242,19 @@ class ServiceManager:
             )
             
             # Get web interface configuration
-            host = os.getenv('WEB_HOST', 'bible-clock')
+            display_host = os.getenv('WEB_HOST', 'bible-clock')
+            bind_host = '0.0.0.0'  # Flask must bind to IP, not hostname
             port = int(os.getenv('WEB_PORT', '5000'))
             debug = os.getenv('WEB_DEBUG', 'false').lower() == 'true'
             
             # Start Flask app in a separate thread
             def run_web_interface():
-                app.run(host=host, port=port, debug=debug, use_reloader=False)
+                app.run(host=bind_host, port=port, debug=debug, use_reloader=False)
             
             self.web_thread = threading.Thread(target=run_web_interface, daemon=True)
             self.web_thread.start()
             
-            self.logger.info(f"Web interface started on http://{host}:{port}")
+            self.logger.info(f"Web interface started on http://{display_host}:{port}")
             
         except Exception as e:
             self.logger.error(f"Failed to start web interface: {e}")
