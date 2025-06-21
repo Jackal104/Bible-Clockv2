@@ -722,45 +722,50 @@ def create_app(verse_manager, image_generator, display_manager, service_manager,
             # Update speaker volume if provided
             if 'speaker_volume' in data:
                 volume = max(0, min(100, int(data['speaker_volume'])))
-                # Try to set volume on USB audio device (card 1)
-                try:
-                    result = subprocess.run([
-                        'amixer', '-c', '1', 'set', 'Speaker', f'{volume}%'
-                    ], capture_output=True, text=True)
-                    if result.returncode == 0:
-                        results.append(f"Speaker volume set to {volume}%")
-                    else:
-                        # Try alternative control names
-                        for control in ['PCM', 'Master', 'Headphone']:
+                volume_set = False
+                
+                # Try different USB audio cards and control names
+                for card in ['1', '2', '0']:  # Try common USB audio card numbers
+                    if volume_set:
+                        break
+                    for control in ['Speaker', 'PCM', 'Master', 'Headphone', 'Front', 'USB Audio']:
+                        try:
                             result = subprocess.run([
-                                'amixer', '-c', '1', 'set', control, f'{volume}%'
-                            ], capture_output=True, text=True)
+                                'amixer', '-c', card, 'set', control, f'{volume}%'
+                            ], capture_output=True, text=True, timeout=5)
                             if result.returncode == 0:
-                                results.append(f"{control} volume set to {volume}%")
+                                results.append(f"Speaker volume set to {volume}% (Card {card}, {control})")
+                                volume_set = True
                                 break
-                except:
-                    results.append(f"Could not set speaker volume")
+                        except:
+                            continue
+                
+                if not volume_set:
+                    results.append(f"Could not set speaker volume - no compatible audio controls found")
             
             # Update microphone volume if provided
             if 'mic_volume' in data:
                 volume = max(0, min(100, int(data['mic_volume'])))
-                try:
-                    result = subprocess.run([
-                        'amixer', '-c', '1', 'set', 'Mic', f'{volume}%'
-                    ], capture_output=True, text=True)
-                    if result.returncode == 0:
-                        results.append(f"Microphone volume set to {volume}%")
-                    else:
-                        # Try alternative control names
-                        for control in ['Capture', 'Front Mic', 'Rear Mic']:
+                volume_set = False
+                
+                # Try different USB audio cards and control names
+                for card in ['1', '2', '0']:  # Try common USB audio card numbers
+                    if volume_set:
+                        break
+                    for control in ['Mic', 'Capture', 'Front Mic', 'Rear Mic', 'USB Audio Mic']:
+                        try:
                             result = subprocess.run([
-                                'amixer', '-c', '1', 'set', control, f'{volume}%'
-                            ], capture_output=True, text=True)
+                                'amixer', '-c', card, 'set', control, f'{volume}%'
+                            ], capture_output=True, text=True, timeout=5)
                             if result.returncode == 0:
-                                results.append(f"{control} volume set to {volume}%")
+                                results.append(f"Microphone volume set to {volume}% (Card {card}, {control})")
+                                volume_set = True
                                 break
-                except:
-                    results.append(f"Could not set microphone volume")
+                        except:
+                            continue
+                
+                if not volume_set:
+                    results.append(f"Could not set microphone volume - no compatible audio controls found")
             
             return jsonify({
                 'success': True,
