@@ -343,9 +343,67 @@ class VerseManager:
         if not verse_data:
             verse_data = self._get_verse_from_local_data(chapter, verse)
         if not verse_data:
-            verse_data = random.choice(self.fallback_verses)
+            # No exact verse found - check if we should show a summary instead
+            verse_data = self._get_time_based_summary_or_fallback(chapter, verse)
         
         return verse_data
+    
+    def _get_time_based_summary_or_fallback(self, chapter: int, verse: int) -> Dict:
+        """Get a time-based book summary when no exact verse exists, or fallback."""
+        now = datetime.now()
+        
+        # Get books that have the requested chapter
+        books_with_chapter = []
+        for book in self.available_books:
+            if self._book_has_chapter(book, chapter):
+                books_with_chapter.append(book)
+        
+        if books_with_chapter:
+            # Select a book based on time for consistency
+            book_index = (now.hour + now.minute) % len(books_with_chapter)
+            selected_book = books_with_chapter[book_index]
+            
+            # Check if ANY book has the exact verse
+            has_exact_verse = any(
+                self._validate_verse_number(book, chapter, verse) == verse 
+                for book in books_with_chapter
+            )
+            
+            # If no book has the exact verse, show summary instead
+            if not has_exact_verse:
+                return self._get_time_based_book_summary(selected_book, chapter, verse)
+        
+        # Final fallback to random verse
+        return random.choice(self.fallback_verses)
+    
+    def _get_time_based_book_summary(self, book: str, chapter: int, verse: int) -> Dict:
+        """Get a book summary for time-based display when exact verse doesn't exist."""
+        # Get book summary
+        if self.book_summaries and book in self.book_summaries:
+            summary = self.book_summaries[book]
+        else:
+            # Create a basic summary if none available
+            summary = {
+                'title': book,
+                'summary': f'{book} is a book of the Bible containing wisdom and spiritual guidance.'
+            }
+        
+        now = datetime.now()
+        time_display = now.strftime('%I:%M %p' if self.time_format == '12' else '%H:%M')
+        
+        return {
+            'reference': f'{book} - Book Summary',
+            'text': summary['summary'],
+            'book': book,
+            'chapter': 0,  # 0 indicates summary
+            'verse': 0,    # 0 indicates summary
+            'is_summary': True,
+            'is_time_based_summary': True,
+            'requested_time': f'{chapter}:{verse:02d}',
+            'current_time': time_display,
+            'summary_reason': f'No Bible book contains Chapter {chapter}, Verse {verse}',
+            'time_correlation': f'Time {time_display} → Chapter {chapter}:Verse {verse} → {book} Summary'
+        }
     
     def _get_date_based_verse(self) -> Dict:
         """Get verse based on today's date and biblical events with 15-minute cycling."""
