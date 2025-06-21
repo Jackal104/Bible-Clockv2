@@ -8,8 +8,8 @@ Type=simple
 User=admin
 Group=admin
 WorkingDirectory=/home/admin/Bible-Clock-v3
-Environment=PATH=/home/admin/Bible-Clock-v3/venv/bin
-ExecStart=/home/admin/Bible-Clock-v3/venv/bin/python3 /home/admin/Bible-Clock-v3/main.py
+Environment="PATH=/home/admin/Bible-Clock-v3/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+ExecStart=/home/admin/Bible-Clock-v3/start_bible_clock.sh
 Restart=always
 RestartSec=10
 StandardOutput=journal
