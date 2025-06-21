@@ -526,8 +526,6 @@ function updateVoiceSettings() {
         voice_selection: document.getElementById('voice-selection').value,
         audio_input_enabled: document.getElementById('audio-input-enabled').checked,
         audio_output_enabled: document.getElementById('audio-output-enabled').checked,
-        respeaker_enabled: document.getElementById('respeaker-enabled').checked,
-        force_respeaker_output: document.getElementById('force-respeaker-output').checked
     };
     
     fetch('/api/voice/settings', {
@@ -571,8 +569,6 @@ function applyVoiceSettings() {
         voice_selection: document.getElementById('voice-selection').value,
         audio_input_enabled: document.getElementById('audio-input-enabled').checked,
         audio_output_enabled: document.getElementById('audio-output-enabled').checked,
-        respeaker_enabled: document.getElementById('respeaker-enabled').checked,
-        force_respeaker_output: document.getElementById('force-respeaker-output').checked
     };
     
     // Include API key only if it's new (not masked)

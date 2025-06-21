@@ -501,13 +501,6 @@ def create_app(verse_manager, image_generator, display_manager, service_manager,
                 voice_control.audio_output_enabled = data['audio_output_enabled']
                 app.logger.info(f"Audio output: {'enabled' if data['audio_output_enabled'] else 'disabled'}")
             
-            if 'respeaker_enabled' in data:
-                voice_control.respeaker_enabled = data['respeaker_enabled']
-                app.logger.info(f"ReSpeaker HAT: {'enabled' if data['respeaker_enabled'] else 'disabled'}")
-            
-            if 'force_respeaker_output' in data:
-                voice_control.force_respeaker_output = data['force_respeaker_output']
-                app.logger.info(f"Force ReSpeaker output: {'enabled' if data['force_respeaker_output'] else 'disabled'}")
             
             if 'voice_selection' in data:
                 voice_control.voice_selection = data['voice_selection']
@@ -548,6 +541,227 @@ def create_app(verse_manager, image_generator, display_manager, service_manager,
             app.logger.error(f"Voice settings API error: {e}")
             return jsonify({'success': False, 'error': str(e)}), 500
     
+    # === Audio API Endpoints ===
+    
+    @app.route('/api/audio/devices', methods=['GET'])
+    def get_audio_devices():
+        """Get available audio devices."""
+        try:
+            import subprocess
+            
+            # Get playback devices
+            playback_result = subprocess.run(['aplay', '-l'], capture_output=True, text=True)
+            playback_devices = []
+            if playback_result.returncode == 0:
+                for line in playback_result.stdout.split('\n'):
+                    if 'card' in line and ':' in line:
+                        parts = line.split(':')
+                        if len(parts) >= 2:
+                            card_info = parts[0].strip()
+                            device_name = parts[1].strip()
+                            card_num = card_info.split()[1]
+                            playback_devices.append({
+                                'card': card_num,
+                                'name': device_name
+                            })
+            
+            # Get recording devices
+            recording_result = subprocess.run(['arecord', '-l'], capture_output=True, text=True)
+            recording_devices = []
+            if recording_result.returncode == 0:
+                for line in recording_result.stdout.split('\n'):
+                    if 'card' in line and ':' in line:
+                        parts = line.split(':')
+                        if len(parts) >= 2:
+                            card_info = parts[0].strip()
+                            device_name = parts[1].strip()
+                            card_num = card_info.split()[1]
+                            recording_devices.append({
+                                'card': card_num,
+                                'name': device_name
+                            })
+            
+            return jsonify({
+                'success': True,
+                'data': {
+                    'playback': playback_devices,
+                    'recording': recording_devices
+                }
+            })
+        except Exception as e:
+            app.logger.error(f"Audio devices API error: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    @app.route('/api/audio/test-microphone', methods=['POST'])
+    def test_microphone():
+        """Test microphone by recording 5 seconds of audio."""
+        try:
+            import subprocess
+            import tempfile
+            import os
+            
+            # Create temporary file for recording
+            with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_file:
+                temp_path = temp_file.name
+            
+            try:
+                # Record 5 seconds of audio
+                result = subprocess.run([
+                    'arecord', '-f', 'cd', '-t', 'wav', '-d', '5', temp_path
+                ], capture_output=True, text=True, timeout=10)
+                
+                if result.returncode == 0:
+                    # Check if file was created and has content
+                    if os.path.exists(temp_path) and os.path.getsize(temp_path) > 1000:
+                        # Get basic volume info (file size as rough indicator)
+                        file_size = os.path.getsize(temp_path)
+                        volume_level = "Good" if file_size > 50000 else "Low" if file_size > 10000 else "Very Low"
+                        
+                        return jsonify({
+                            'success': True,
+                            'message': 'Microphone test successful',
+                            'volume_level': volume_level,
+                            'file_size': file_size
+                        })
+                    else:
+                        return jsonify({
+                            'success': False,
+                            'error': 'No audio recorded - check microphone connection'
+                        })
+                else:
+                    return jsonify({
+                        'success': False,
+                        'error': f'Recording failed: {result.stderr}'
+                    })
+            finally:
+                # Clean up temporary file
+                if os.path.exists(temp_path):
+                    os.unlink(temp_path)
+                    
+        except subprocess.TimeoutExpired:
+            return jsonify({
+                'success': False,
+                'error': 'Recording timeout - microphone may not be working'
+            })
+        except Exception as e:
+            app.logger.error(f"Microphone test API error: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    @app.route('/api/audio/test-speakers', methods=['POST'])
+    def test_speakers():
+        """Test speakers using speaker-test command."""
+        try:
+            import subprocess
+            
+            # Run speaker test for 2 seconds
+            result = subprocess.run([
+                'timeout', '2', 'speaker-test', '-c', '2', '-r', '44100', '-t', 'sine'
+            ], capture_output=True, text=True)
+            
+            # speaker-test returns non-zero when interrupted by timeout, which is expected
+            if 'ALSA' in result.stderr or 'Front Left' in result.stdout:
+                return jsonify({
+                    'success': True,
+                    'message': 'Speaker test completed'
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': 'Speaker test failed - check speaker connection'
+                })
+                
+        except Exception as e:
+            app.logger.error(f"Speaker test API error: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    @app.route('/api/audio/play-test-sound', methods=['POST'])
+    def play_test_sound():
+        """Play a test sound using text-to-speech."""
+        try:
+            # Use voice control to play test sound if available
+            voice_control = getattr(app.service_manager, 'voice_control', None)
+            if voice_control and hasattr(voice_control, 'speak'):
+                voice_control.speak("Audio test successful. Speakers are working properly.")
+                return jsonify({
+                    'success': True,
+                    'message': 'Test sound played successfully'
+                })
+            else:
+                # Fallback to system beep
+                import subprocess
+                result = subprocess.run(['beep'], capture_output=True)
+                return jsonify({
+                    'success': True,
+                    'message': 'System beep played (TTS not available)'
+                })
+                
+        except Exception as e:
+            app.logger.error(f"Play test sound API error: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    @app.route('/api/audio/volume', methods=['POST'])
+    def update_audio_volume():
+        """Update microphone and speaker volume levels."""
+        try:
+            data = request.get_json()
+            if not data:
+                return jsonify({'success': False, 'error': 'No data provided'}), 400
+            
+            import subprocess
+            results = []
+            
+            # Update speaker volume if provided
+            if 'speaker_volume' in data:
+                volume = max(0, min(100, int(data['speaker_volume'])))
+                # Try to set volume on USB audio device (card 1)
+                try:
+                    result = subprocess.run([
+                        'amixer', '-c', '1', 'set', 'Speaker', f'{volume}%'
+                    ], capture_output=True, text=True)
+                    if result.returncode == 0:
+                        results.append(f"Speaker volume set to {volume}%")
+                    else:
+                        # Try alternative control names
+                        for control in ['PCM', 'Master', 'Headphone']:
+                            result = subprocess.run([
+                                'amixer', '-c', '1', 'set', control, f'{volume}%'
+                            ], capture_output=True, text=True)
+                            if result.returncode == 0:
+                                results.append(f"{control} volume set to {volume}%")
+                                break
+                except:
+                    results.append(f"Could not set speaker volume")
+            
+            # Update microphone volume if provided
+            if 'mic_volume' in data:
+                volume = max(0, min(100, int(data['mic_volume'])))
+                try:
+                    result = subprocess.run([
+                        'amixer', '-c', '1', 'set', 'Mic', f'{volume}%'
+                    ], capture_output=True, text=True)
+                    if result.returncode == 0:
+                        results.append(f"Microphone volume set to {volume}%")
+                    else:
+                        # Try alternative control names
+                        for control in ['Capture', 'Front Mic', 'Rear Mic']:
+                            result = subprocess.run([
+                                'amixer', '-c', '1', 'set', control, f'{volume}%'
+                            ], capture_output=True, text=True)
+                            if result.returncode == 0:
+                                results.append(f"{control} volume set to {volume}%")
+                                break
+                except:
+                    results.append(f"Could not set microphone volume")
+            
+            return jsonify({
+                'success': True,
+                'message': '; '.join(results) if results else 'No volume changes applied'
+            })
+            
+        except Exception as e:
+            app.logger.error(f"Audio volume API error: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+
     @app.route('/health')
     def health_check():
         """Health check endpoint."""
