@@ -28,16 +28,21 @@ class BibleClockVoiceControl:
         self.help_enabled = os.getenv('VOICE_HELP_ENABLED', 'true').lower() == 'true'
         self.help_section_pause = int(os.getenv('HELP_SECTION_PAUSE', '2'))
         
-        # ReSpeaker HAT settings
-        self.respeaker_enabled = os.getenv('RESPEAKER_ENABLED', 'true').lower() == 'true'
-        self.respeaker_channels = int(os.getenv('RESPEAKER_CHANNELS', '6'))
-        self.respeaker_sample_rate = int(os.getenv('RESPEAKER_SAMPLE_RATE', '16000'))
-        self.respeaker_chunk_size = int(os.getenv('RESPEAKER_CHUNK_SIZE', '1024'))
+        # USB Audio settings (primary audio method)
+        self.usb_audio_enabled = os.getenv('USB_AUDIO_ENABLED', 'true').lower() == 'true'
+        self.usb_mic_device = os.getenv('USB_MIC_DEVICE_NAME', 'USB PnP Audio Device')
+        self.usb_speaker_device = os.getenv('USB_SPEAKER_DEVICE_NAME', 'USB PnP Audio Device')
         
         # Audio input/output controls
         self.audio_input_enabled = os.getenv('AUDIO_INPUT_ENABLED', 'true').lower() == 'true'
         self.audio_output_enabled = os.getenv('AUDIO_OUTPUT_ENABLED', 'true').lower() == 'true'
-        self.force_respeaker_output = os.getenv('FORCE_RESPEAKER_OUTPUT', 'true').lower() == 'true'
+        
+        # ReSpeaker HAT settings (legacy support, disabled by default)
+        self.respeaker_enabled = os.getenv('RESPEAKER_ENABLED', 'false').lower() == 'true'
+        self.respeaker_channels = int(os.getenv('RESPEAKER_CHANNELS', '6'))
+        self.respeaker_sample_rate = int(os.getenv('RESPEAKER_SAMPLE_RATE', '16000'))
+        self.respeaker_chunk_size = int(os.getenv('RESPEAKER_CHUNK_SIZE', '1024'))
+        self.force_respeaker_output = os.getenv('FORCE_RESPEAKER_OUTPUT', 'false').lower() == 'true'
         
         # ChatGPT settings
         self.chatgpt_enabled = os.getenv('ENABLE_CHATGPT', 'false').lower() == 'true'
@@ -87,7 +92,7 @@ class BibleClockVoiceControl:
                 self._initialize_chatgpt()
     
     def _initialize_voice_components(self):
-        """Initialize speech recognition and text-to-speech with ReSpeaker support."""
+        """Initialize speech recognition and text-to-speech with USB audio support."""
         try:
             import speech_recognition as sr
             import pyttsx3
@@ -95,8 +100,10 @@ class BibleClockVoiceControl:
             # Initialize speech recognition
             self.recognizer = sr.Recognizer()
             
-            # Initialize microphone (ReSpeaker or default)
-            if self.respeaker_enabled:
+            # Initialize microphone (USB audio preferred, ReSpeaker as fallback)
+            if self.usb_audio_enabled:
+                self.microphone = self._initialize_usb_microphone()
+            elif self.respeaker_enabled:
                 self.microphone = self._initialize_respeaker_microphone()
             else:
                 self.microphone = sr.Microphone()
@@ -165,8 +172,27 @@ class BibleClockVoiceControl:
             self.logger.error(f"Voice control initialization failed: {e}")
             self.enabled = False
     
+    def _initialize_usb_microphone(self):
+        """Initialize USB audio microphone."""
+        try:
+            import speech_recognition as sr
+            
+            # Find USB audio device
+            for i, device_info in enumerate(sr.Microphone.list_microphone_names()):
+                if self.usb_mic_device.lower() in device_info.lower() or 'usb' in device_info.lower():
+                    self.logger.info(f"Found USB audio device: {device_info}")
+                    return sr.Microphone(device_index=i, sample_rate=16000, chunk_size=1024)
+            
+            # Fallback to default if USB device not found
+            self.logger.warning("USB audio device not found, using default microphone")
+            return sr.Microphone()
+            
+        except Exception as e:
+            self.logger.error(f"USB microphone initialization failed: {e}")
+            return sr.Microphone()
+
     def _initialize_respeaker_microphone(self):
-        """Initialize ReSpeaker HAT microphone."""
+        """Initialize ReSpeaker HAT microphone (legacy support)."""
         try:
             import speech_recognition as sr
             
