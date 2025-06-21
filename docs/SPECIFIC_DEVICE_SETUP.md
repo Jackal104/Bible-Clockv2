@@ -264,11 +264,47 @@ alsamixer
 ```
 
 ### Bible Clock Voice Commands for Your Setup
-- **"bible"** - Wake word (optimized for Fifine K053)
-- **"help"** - List commands
-- **"next verse"** - New verse
+
+**Wake Word**: "bible clock" (optimized for Fifine K053 cardioid pattern)
+
+#### 📖 Display Control Commands
+- **"speak verse"** - Read current verse aloud
+- **"refresh display"** - Update with new verse  
+- **"clear display"** - Clear screen to white
+- **"change background"** - Switch background style
+- **"cycle mode"** - Change Bible translation
+- **"change mode"** - Switch time/date/random modes
+- **"time mode"** - Time-based verse selection
+- **"date mode"** - Biblical calendar events
+- **"random mode"** - Random verse inspiration
+
+#### ℹ️ Information Commands  
 - **"what time is it"** - Current time
-- **"change background"** - Cycle background
+- **"system status"** - Health and performance report
+- **"current verse"** - What verse is displayed
+- **"current mode"** - Active display mode
+- **"current translation"** - Bible version in use
+
+#### ❓ Biblical Questions (ChatGPT Integration)
+Ask naturally after "bible clock":
+- **"What does this verse mean?"**
+- **"Who was King David?"**
+- **"Explain the parable of the prodigal son"**
+- **"What happened in the book of Exodus?"**
+- **"Help me understand this passage"**
+- **"Tell me about biblical love"**
+- **"Why is this verse important?"**
+- **"What can I learn from this?"**
+- **"What is the significance of the cross?"**
+- **"How should I pray?"**
+
+#### 🆘 Help Commands
+- **"help"** - Complete command overview
+- **"help display"** - Display control commands
+- **"help information"** - Information commands
+- **"help questions"** - How to ask biblical questions
+- **"help examples"** - Question examples
+- **"help setup"** - Configuration guidance
 
 ## Performance Optimization
 

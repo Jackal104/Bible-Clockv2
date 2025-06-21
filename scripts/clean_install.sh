@@ -116,7 +116,7 @@ REQUEST_TIMEOUT=15
 
 # Voice Control Settings (USB Audio Devices)
 ENABLE_VOICE=false
-WAKE_WORD=bible
+WAKE_WORD=bible clock
 VOICE_RATE=150
 VOICE_VOLUME=0.8
 
