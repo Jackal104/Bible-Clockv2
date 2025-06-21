@@ -28,6 +28,12 @@ if [ ! -f "main.py" ]; then
     exit 1
 fi
 
-# Start Bible Clock
-echo "🚀 Launching Bible Clock..."
-python main.py
+# Set environment variables for voice control
+export ENABLE_VOICE=true
+export DISPLAY_WIDTH=1872
+export DISPLAY_HEIGHT=1404
+export BIBLE_API_URL=https://bible-api.com
+
+# Start Bible Clock with voice control enabled
+echo "🚀 Launching Bible Clock with voice control..."
+python main.py --enable-voice
