@@ -9,7 +9,7 @@ User=admin
 Group=admin
 WorkingDirectory=/home/admin/Bible-Clock-v3
 Environment=PATH=/home/admin/Bible-Clock-v3/venv/bin
-ExecStart=/home/admin/Bible-Clock-v3/venv/bin/python /home/admin/Bible-Clock-v3/main.py
+ExecStart=/home/admin/Bible-Clock-v3/venv/bin/python3 /home/admin/Bible-Clock-v3/main.py --hardware
 Restart=always
 RestartSec=10
 StandardOutput=journal
