@@ -5,11 +5,11 @@ Wants=network.target
 
 [Service]
 Type=simple
-User=pi
-Group=pi
-WorkingDirectory=/home/pi/bible-clock
-Environment=PATH=/home/pi/bible-clock/venv/bin
-ExecStart=/home/pi/bible-clock/venv/bin/python /home/pi/bible-clock/bin/run_clock.py
+User=admin
+Group=admin
+WorkingDirectory=/home/admin/Bible-Clock-v3
+Environment=PATH=/home/admin/Bible-Clock-v3/venv/bin
+ExecStart=/home/admin/Bible-Clock-v3/venv/bin/python /home/admin/Bible-Clock-v3/main.py
 Restart=always
 RestartSec=10
 StandardOutput=journal
@@ -20,7 +20,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/home/pi/bible-clock /var/log
+ReadWritePaths=/home/admin/Bible-Clock-v3 /var/log
 
 [Install]
 WantedBy=multi-user.target
