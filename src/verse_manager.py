@@ -39,6 +39,7 @@ class VerseManager:
         self._load_book_summaries()
         self._load_kjv_bible()
         self._load_biblical_calendar()
+        self._load_bible_structure()
         
         # All available Bible books (will be populated from local data)
         self.available_books = []
@@ -105,6 +106,17 @@ class VerseManager:
             self.biblical_events_calendar = self._get_default_biblical_calendar()
             self.biblical_calendar = {}
     
+    def _load_bible_structure(self):
+        """Load complete Bible structure with chapter/verse counts."""
+        try:
+            structure_path = Path('data/bible_structure.json')
+            with open(structure_path, 'r') as f:
+                self.bible_structure = json.load(f)
+            self.logger.info("Loaded complete Bible structure data")
+        except Exception as e:
+            self.logger.error(f"Failed to load Bible structure: {e}")
+            self.bible_structure = {}
+    
     def _populate_available_books(self):
         """Populate the list of available books from local KJV data."""
         # Always use the full list of Bible books for time-based calculations
@@ -164,6 +176,80 @@ class VerseManager:
         
         estimated_chapters = book_chapter_estimates.get(book, 10)  # Default to 10
         return chapter_num <= estimated_chapters
+    
+    def _validate_verse_number(self, book: str, chapter: int, verse: int) -> Optional[int]:
+        """Validate and adjust verse number using comprehensive Bible structure data."""
+        try:
+            # Use the complete Bible structure data
+            max_verse = self._get_max_verse_for_chapter(book, chapter)
+            
+            if max_verse is None:
+                self.logger.debug(f"No verse data found for {book} {chapter}")
+                return None
+            
+            if verse <= max_verse:
+                return verse
+            else:
+                # Return the highest available verse in this chapter
+                self.logger.debug(f"Requested verse {verse} > max {max_verse} for {book} {chapter}, using verse {max_verse}")
+                return max_verse
+                
+        except Exception as e:
+            self.logger.debug(f"Verse validation failed for {book} {chapter}:{verse}: {e}")
+            return None
+    
+    def _get_max_verse_for_chapter(self, book: str, chapter: int) -> Optional[int]:
+        """Get the maximum verse number for a given book and chapter using complete Bible data."""
+        # First check our comprehensive loaded structure
+        if hasattr(self, 'bible_structure') and self.bible_structure:
+            if book in self.bible_structure:
+                book_data = self.bible_structure[book]
+                if str(chapter) in book_data:
+                    return book_data[str(chapter)]
+        
+        # Fallback: check local KJV data if available
+        if self.kjv_bible and book in self.kjv_bible:
+            chapter_data = self.kjv_bible[book].get(str(chapter), {})
+            if chapter_data:
+                available_verses = [int(v) for v in chapter_data.keys() if v.isdigit()]
+                if available_verses:
+                    return max(available_verses)
+        
+        # No data found for this book/chapter
+        return None
+    
+    def _get_all_books_with_valid_verse(self, chapter: int, verse: int) -> List[Dict]:
+        """Get all books that have a valid verse for the given chapter:verse, with actual verse numbers."""
+        candidate_books = []
+        
+        # Check all 66 Bible books systematically
+        for book in self.available_books:
+            # Check if this book has the requested chapter
+            if not self._book_has_chapter(book, chapter):
+                continue
+            
+            # Validate and get the actual verse number
+            validated_verse = self._validate_verse_number(book, chapter, verse)
+            if validated_verse:
+                candidate_books.append({
+                    'book': book,
+                    'verse': validated_verse,
+                    'exact_match': validated_verse == verse
+                })
+        
+        # Sort to prioritize exact matches, then by book order
+        candidate_books.sort(key=lambda x: (not x['exact_match'], self.available_books.index(x['book'])))
+        
+        return candidate_books
+    
+    def _book_has_chapter(self, book: str, chapter: int) -> bool:
+        """Check if a book has the specified chapter."""
+        if hasattr(self, 'bible_structure') and self.bible_structure:
+            if book in self.bible_structure:
+                return str(chapter) in self.bible_structure[book]
+        
+        # Fallback to estimates
+        return self._book_likely_has_chapter(book, chapter)
     
     def _get_default_fallback_verses(self) -> List[Dict]:
         """Return default fallback verses if file loading fails."""
@@ -382,12 +468,19 @@ class VerseManager:
             return verse_data
     
     def _get_verse_from_api_with_translation(self, book: str, chapter: int, verse: int, translation: str) -> Optional[Dict]:
-        """Get verse from API with specific translation."""
+        """Get verse from API with specific translation and validation."""
         if not self.api_url:
             return None
         
         try:
-            url = f"{self.api_url}/{book} {chapter}:{verse}"
+            # Validate the verse exists for this book/chapter
+            validated_verse = self._validate_verse_number(book, chapter, verse)
+            if not validated_verse:
+                self.logger.debug(f"Verse {book} {chapter}:{verse} not valid for parallel translation")
+                return None
+            
+            actual_verse = validated_verse
+            url = f"{self.api_url}/{book} {chapter}:{actual_verse}"
             if translation != 'kjv':
                 url += f"?translation={translation}"
             
@@ -401,16 +494,17 @@ class VerseManager:
                 return None
             
             return {
-                'reference': data.get('reference', f"{book} {chapter}:{verse}"),
+                'reference': data.get('reference', f"{book} {chapter}:{actual_verse}"),
                 'text': verse_text,
                 'book': book,
                 'chapter': chapter,
-                'verse': verse,
-                'translation': translation
+                'verse': actual_verse,
+                'translation': translation,
+                'adjusted': actual_verse != verse
             }
             
         except Exception as e:
-            self.logger.warning(f"API request failed for {translation}: {e}")
+            self.logger.debug(f"API request failed for {translation} {book} {chapter}:{verse}: {e}")
             return None
     
     def _get_random_verse(self) -> Dict:
@@ -440,43 +534,55 @@ class VerseManager:
         }
     
     def _get_verse_from_api(self, chapter: int, verse: int) -> Optional[Dict]:
-        """Try to get verse from online API."""
+        """Get verse from API using systematic book selection and comprehensive validation."""
         if not self.api_url:
             return None
         
         try:
-            # Get books that have the required chapter
-            books_with_chapter = self._get_books_with_chapter(chapter)
+            # Get all books that have this chapter systematically
+            all_candidate_books = self._get_all_books_with_valid_verse(chapter, verse)
             
-            if not books_with_chapter:
-                self.logger.warning(f"No books found with chapter {chapter}")
+            if not all_candidate_books:
+                self.logger.debug(f"No books found with valid verse {chapter}:{verse}")
                 return None
             
-            # Randomly select a book from those that have the chapter
-            book = random.choice(books_with_chapter)
+            # Use time-based selection for consistency - same time = same book
+            now = datetime.now()
+            book_index = (now.hour + now.minute) % len(all_candidate_books)
+            selected_book_data = all_candidate_books[book_index]
             
-            url = f"{self.api_url}/{book} {chapter}:{verse}"
+            book = selected_book_data['book']
+            actual_verse = selected_book_data['verse']
+            
+            url = f"{self.api_url}/{book} {chapter}:{actual_verse}"
             if self.translation != 'kjv':
                 url += f"?translation={self.translation}"
             
-            response = requests.get(url, timeout=self.timeout)
-            response.raise_for_status()
-            
-            data = response.json()
-            
-            # Check if the API returned valid data
-            verse_text = data.get('text', '').strip()
-            if not verse_text:
-                self.logger.warning(f"Empty verse returned from API for {book} {chapter}:{verse}")
+            try:
+                response = requests.get(url, timeout=self.timeout)
+                response.raise_for_status()
+                
+                data = response.json()
+                verse_text = data.get('text', '').strip()
+                
+                if verse_text:
+                    return {
+                        'reference': data.get('reference', f"{book} {chapter}:{actual_verse}"),
+                        'text': verse_text,
+                        'book': book,
+                        'chapter': chapter,
+                        'verse': actual_verse,
+                        'original_request': f"{chapter}:{verse}",
+                        'adjusted': actual_verse != verse
+                    }
+                else:
+                    self.logger.debug(f"Empty verse returned from API for {book} {chapter}:{actual_verse}")
+                    
+            except requests.exceptions.RequestException as e:
+                self.logger.debug(f"API request failed for {book} {chapter}:{actual_verse}: {e}")
                 return None
             
-            return {
-                'reference': data.get('reference', f"{book} {chapter}:{verse}"),
-                'text': verse_text,
-                'book': book,
-                'chapter': chapter,
-                'verse': verse
-            }
+            return None
             
         except Exception as e:
             self.logger.warning(f"API request failed: {e}")
