@@ -546,10 +546,21 @@ class VerseManager:
                 self.logger.debug(f"No books found with valid verse {chapter}:{verse}")
                 return None
             
-            # Use time-based selection for consistency - same time = same book
-            now = datetime.now()
-            book_index = (now.hour + now.minute) % len(all_candidate_books)
-            selected_book_data = all_candidate_books[book_index]
+            # Prioritize books with exact verse match, then use time-based selection
+            exact_match_books = [book for book in all_candidate_books if book['exact_match']]
+            
+            if exact_match_books:
+                # Use time-based selection among books with exact verse match
+                now = datetime.now()
+                book_index = (now.hour + now.minute) % len(exact_match_books)
+                selected_book_data = exact_match_books[book_index]
+                self.logger.debug(f"Selected exact match: {selected_book_data['book']} {chapter}:{selected_book_data['verse']}")
+            else:
+                # Fall back to any valid book
+                now = datetime.now()
+                book_index = (now.hour + now.minute) % len(all_candidate_books)
+                selected_book_data = all_candidate_books[book_index]
+                self.logger.debug(f"Selected adjusted verse: {selected_book_data['book']} {chapter}:{selected_book_data['verse']} (requested {verse})")
             
             book = selected_book_data['book']
             actual_verse = selected_book_data['verse']
