@@ -133,22 +133,28 @@ class ServiceManager:
     
     @error_handler.with_retry(max_retries=2)
     def _update_verse(self):
-        """Update the displayed verse."""
-        with self.performance_monitor.time_operation('verse_update'):
-            # Get current verse
-            verse_data = self.verse_manager.get_current_verse()
-            
-            # Generate image
-            image = self.image_generator.create_verse_image(verse_data)
-            
-            # Display image
-            self.display_manager.display_image(image)
-            
-            # Update tracking
-            self.last_update = datetime.now()
-            self.error_count = 0
-            
-            self.logger.info(f"Verse updated: {verse_data['reference']}")
+        """Update the displayed verse at precise minute boundaries."""
+        now = datetime.now()
+        
+        # Only update if we're at the start of a minute (0-2 seconds)
+        if now.second <= 2:
+            with self.performance_monitor.time_operation('verse_update'):
+                # Get current verse
+                verse_data = self.verse_manager.get_current_verse()
+                
+                # Generate image
+                image = self.image_generator.create_verse_image(verse_data)
+                
+                # Display image
+                self.display_manager.display_image(image)
+                
+                # Update tracking
+                self.last_update = datetime.now()
+                self.error_count = 0
+                
+                self.logger.info(f"Verse updated: {verse_data['reference']} at {now.strftime('%H:%M:%S')}")
+        else:
+            self.logger.debug(f"Skipping verse update at {now.strftime('%H:%M:%S')} - not at minute boundary")
     
     def _health_check(self):
         """Perform system health checks."""
