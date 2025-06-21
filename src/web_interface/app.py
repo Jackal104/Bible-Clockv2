@@ -114,7 +114,8 @@ def create_app(verse_manager, image_generator, display_manager, service_manager,
                 'font_sizes': app.image_generator.get_font_sizes(),
                 'voice_enabled': getattr(app.verse_manager, 'voice_enabled', False),
                 'web_enabled': True,
-                'auto_refresh': int(os.getenv('FORCE_REFRESH_INTERVAL', '60'))
+                'auto_refresh': int(os.getenv('FORCE_REFRESH_INTERVAL', '60')),
+                'hardware_mode': os.getenv('SIMULATION_MODE', 'false').lower() == 'false'
             }
             
             return jsonify({'success': True, 'data': settings})
@@ -170,6 +171,14 @@ def create_app(verse_manager, image_generator, display_manager, service_manager,
                     reference_size=data.get('reference_size')
                 )
                 app.logger.info("Font sizes updated")
+            
+            # Update hardware mode
+            if 'hardware_mode' in data:
+                simulation_mode = 'false' if data['hardware_mode'] else 'true'
+                os.environ['SIMULATION_MODE'] = simulation_mode
+                # Update display manager simulation mode
+                app.display_manager.simulation_mode = not data['hardware_mode']
+                app.logger.info(f"Hardware mode: {'enabled' if data['hardware_mode'] else 'disabled (simulation)'}")
             
             # Force display update
             if data.get('update_display', False):

@@ -134,6 +134,8 @@ Examples:
     # Configuration options
     parser.add_argument('--simulation', action='store_true',
                         help='Run in simulation mode (save to file instead of e-ink)')
+    parser.add_argument('--hardware', action='store_true',
+                        help='Force hardware mode (use e-ink display)')
     parser.add_argument('--config', type=str,
                         help='Path to configuration file')
     
@@ -152,6 +154,8 @@ Examples:
     # Set environment variables based on arguments
     if args.simulation:
         os.environ['SIMULATION_MODE'] = 'true'
+    elif args.hardware:
+        os.environ['SIMULATION_MODE'] = 'false'
     
     if args.web_only:
         os.environ['WEB_ONLY'] = 'true'

@@ -238,6 +238,17 @@
                 
                 <div class="flex items-center justify-between">
                     <div>
+                        <label class="text-sm font-medium text-gray-700">Hardware Mode</label>
+                        <p class="text-sm text-gray-500">Enable E-ink display hardware (disable for testing)</p>
+                    </div>
+                    <label class="toggle">
+                        <input type="checkbox" id="hardware-mode" onchange="updateSetting('hardware_mode')">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                
+                <div class="flex items-center justify-between">
+                    <div>
                         <label class="text-sm font-medium text-gray-700">Voice Announcements</label>
                         <p class="text-sm text-gray-500">Enable voice reading of verses</p>
                     </div>
@@ -383,6 +394,7 @@ function populateSettingsForm(settings) {
     document.getElementById('translation').value = settings.translation || 'kjv';
     document.getElementById('auto-refresh').value = settings.auto_refresh || '60';
     document.getElementById('voice-enabled').checked = settings.voice_enabled || false;
+    document.getElementById('hardware-mode').checked = settings.hardware_mode !== false;
     document.getElementById('api-url').value = settings.api_url || 'https://bible-api.com';
     document.getElementById('timeout').value = settings.timeout || 10;
     document.getElementById('retry-attempts').value = settings.retry_attempts || 3;
