@@ -81,7 +81,7 @@ def create_app_components(args):
     voice_control = None
     if args.enable_voice and not args.disable_voice:
         try:
-            voice_control = VoiceControl(verse_manager, display_manager)
+            voice_control = VoiceControl(verse_manager, image_generator, display_manager)
             logger.info("Voice control enabled")
         except Exception as e:
             logger.warning(f"Voice control initialization failed: {e}")
