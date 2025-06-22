@@ -298,6 +298,20 @@
                     </div>
                     
                     <hr class="my-4">
+                    <h5 class="text-sm font-medium text-gray-700 mb-3">Voice Control</h5>
+                    
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <label class="text-sm font-medium text-gray-700">Enable Voice Control</label>
+                            <p class="text-sm text-gray-500">Turn voice control on/off</p>
+                        </div>
+                        <label class="toggle">
+                            <input type="checkbox" id="voice-control-enabled" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    
+                    <hr class="my-4">
                     <h5 class="text-sm font-medium text-gray-700 mb-3">Audio Controls</h5>
                     
                     <div class="flex items-center justify-between">
@@ -352,6 +366,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('chatgpt-enabled').addEventListener('change', updateVoiceSettings);
     document.getElementById('help-enabled').addEventListener('change', updateVoiceSettings);
     document.getElementById('voice-selection').addEventListener('change', updateVoiceSettings);
+    document.getElementById('voice-control-enabled').addEventListener('change', updateVoiceSettings);
     document.getElementById('audio-input-enabled').addEventListener('change', updateVoiceSettings);
     document.getElementById('audio-output-enabled').addEventListener('change', updateVoiceSettings);
     
@@ -389,32 +404,36 @@ function updateVoiceStatusUI(status) {
     const voiceIndicator = document.getElementById('voice-status-indicator');
     const voiceText = document.getElementById('voice-status-text');
     
-    if (status.enabled && status.listening) {
-        voiceIndicator.className = 'w-16 h-16 rounded-full mx-auto mb-2 bg-green-100 flex items-center justify-center';
-        voiceIndicator.querySelector('svg').className = 'w-8 h-8 text-green-600';
-        voiceText.textContent = 'Listening';
-    } else if (status.enabled) {
-        voiceIndicator.className = 'w-16 h-16 rounded-full mx-auto mb-2 bg-yellow-100 flex items-center justify-center';
-        voiceIndicator.querySelector('svg').className = 'w-8 h-8 text-yellow-600';
-        voiceText.textContent = 'Ready';
-    } else {
-        voiceIndicator.className = 'w-16 h-16 rounded-full mx-auto mb-2 bg-red-100 flex items-center justify-center';
-        voiceIndicator.querySelector('svg').className = 'w-8 h-8 text-red-600';
-        voiceText.textContent = 'Disabled';
+    if (voiceIndicator && voiceText) {
+        if (status.enabled && status.listening) {
+            voiceIndicator.className = 'w-16 h-16 rounded-full mx-auto mb-2 bg-green-100 flex items-center justify-center';
+            voiceIndicator.querySelector('svg').className = 'w-8 h-8 text-green-600';
+            voiceText.textContent = 'Listening';
+        } else if (status.enabled) {
+            voiceIndicator.className = 'w-16 h-16 rounded-full mx-auto mb-2 bg-yellow-100 flex items-center justify-center';
+            voiceIndicator.querySelector('svg').className = 'w-8 h-8 text-yellow-600';
+            voiceText.textContent = 'Ready';
+        } else {
+            voiceIndicator.className = 'w-16 h-16 rounded-full mx-auto mb-2 bg-red-100 flex items-center justify-center';
+            voiceIndicator.querySelector('svg').className = 'w-8 h-8 text-red-600';
+            voiceText.textContent = 'Disabled';
+        }
     }
     
     // Update ChatGPT status
     const chatgptIndicator = document.getElementById('chatgpt-status-indicator');
     const chatgptText = document.getElementById('chatgpt-status-text');
     
-    if (status.chatgpt_enabled) {
-        chatgptIndicator.className = 'w-16 h-16 rounded-full mx-auto mb-2 bg-blue-100 flex items-center justify-center';
-        chatgptIndicator.querySelector('svg').className = 'w-8 h-8 text-blue-600';
-        chatgptText.textContent = 'Active';
-    } else {
-        chatgptIndicator.className = 'w-16 h-16 rounded-full mx-auto mb-2 bg-gray-100 flex items-center justify-center';
-        chatgptIndicator.querySelector('svg').className = 'w-8 h-8 text-gray-600';
-        chatgptText.textContent = 'Disabled';
+    if (chatgptIndicator && chatgptText) {
+        if (status.chatgpt_enabled) {
+            chatgptIndicator.className = 'w-16 h-16 rounded-full mx-auto mb-2 bg-blue-100 flex items-center justify-center';
+            chatgptIndicator.querySelector('svg').className = 'w-8 h-8 text-blue-600';
+            chatgptText.textContent = 'Active';
+        } else {
+            chatgptIndicator.className = 'w-16 h-16 rounded-full mx-auto mb-2 bg-gray-100 flex items-center justify-center';
+            chatgptIndicator.querySelector('svg').className = 'w-8 h-8 text-gray-600';
+            chatgptText.textContent = 'Disabled';
+        }
     }
     
     // Update form controls
@@ -423,6 +442,7 @@ function updateVoiceStatusUI(status) {
     document.getElementById('chatgpt-enabled').checked = status.chatgpt_enabled || false;
     document.getElementById('help-enabled').checked = status.help_enabled !== false;
     document.getElementById('voice-selection').value = status.voice_selection || 'default';
+    document.getElementById('voice-control-enabled').checked = status.enabled !== false;
     document.getElementById('chatgpt-api-key').value = status.chatgpt_api_key ? '•'.repeat(20) : '';
     
     // Update audio controls
@@ -564,6 +584,7 @@ function applyVoiceSettings() {
         chatgpt_enabled: document.getElementById('chatgpt-enabled').checked,
         help_enabled: document.getElementById('help-enabled').checked,
         voice_selection: document.getElementById('voice-selection').value,
+        voice_control_enabled: document.getElementById('voice-control-enabled').checked,
         audio_input_enabled: document.getElementById('audio-input-enabled').checked,
         audio_output_enabled: document.getElementById('audio-output-enabled').checked,
     };

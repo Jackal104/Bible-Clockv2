@@ -116,14 +116,19 @@ class BibleClockVoiceControl:
             
             # Initialize text-to-speech with better error handling
             try:
-                # Configure TTS for ReSpeaker output if enabled
-                if self.respeaker_enabled and self.force_respeaker_output:
-                    # Try to initialize TTS with ReSpeaker-specific settings
+                # Configure TTS for USB audio (preferred) or ReSpeaker (legacy)
+                if self.usb_audio_enabled and self.audio_output_enabled:
+                    # Initialize TTS for USB audio devices
                     self.tts_engine = pyttsx3.init()
-                    # Configure ALSA device for ReSpeaker output
+                    self.logger.info("TTS engine initialized for USB audio output")
+                elif self.respeaker_enabled and self.force_respeaker_output:
+                    # Legacy ReSpeaker support
+                    self.tts_engine = pyttsx3.init()
                     os.environ['PULSE_PCM_DEVICE'] = 'hw:seeedvoicecard,0'
+                    self.logger.info("TTS engine initialized for ReSpeaker output")
                 else:
                     self.tts_engine = pyttsx3.init()
+                    self.logger.info("TTS engine initialized with default output")
                     
                 self.tts_engine.setProperty('rate', self.voice_rate)
                 self.tts_engine.setProperty('volume', self.voice_volume)
@@ -1017,9 +1022,14 @@ class BibleClockVoiceControl:
             # Enhance speech for better clarity
             enhanced_text = self._enhance_speech_text(text)
             
-            # Configure audio output device if ReSpeaker is enabled
-            if self.respeaker_enabled and self.force_respeaker_output:
-                # Set environment variable for espeak to use ReSpeaker
+            # Configure audio output device (USB audio preferred, ReSpeaker legacy)
+            if self.usb_audio_enabled and self.audio_output_enabled:
+                # USB audio devices - use default TTS output (should route to USB speakers)
+                self.logger.debug("Using USB audio output for TTS")
+                self.tts_engine.say(enhanced_text)
+                self.tts_engine.runAndWait()
+            elif self.respeaker_enabled and self.force_respeaker_output:
+                # Legacy ReSpeaker support
                 original_pulse_device = os.environ.get('PULSE_PCM_DEVICE')
                 os.environ['PULSE_PCM_DEVICE'] = 'hw:seeedvoicecard,0'
                 try:
@@ -1032,6 +1042,7 @@ class BibleClockVoiceControl:
                     elif 'PULSE_PCM_DEVICE' in os.environ:
                         del os.environ['PULSE_PCM_DEVICE']
             else:
+                # Default audio output
                 self.tts_engine.say(enhanced_text)
                 self.tts_engine.runAndWait()
             
