@@ -346,7 +346,7 @@ document.addEventListener('DOMContentLoaded', function() {
     loadVoiceStatus();
     loadConversationHistory();
     
-    // Set up event listeners
+    // Set up event listeners for existing elements
     document.getElementById('voice-rate').addEventListener('change', updateVoiceSettings);
     document.getElementById('voice-volume').addEventListener('change', updateVoiceSettings);
     document.getElementById('chatgpt-enabled').addEventListener('change', updateVoiceSettings);
@@ -354,8 +354,17 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('voice-selection').addEventListener('change', updateVoiceSettings);
     document.getElementById('audio-input-enabled').addEventListener('change', updateVoiceSettings);
     document.getElementById('audio-output-enabled').addEventListener('change', updateVoiceSettings);
-    document.getElementById('respeaker-enabled').addEventListener('change', updateVoiceSettings);
-    document.getElementById('force-respeaker-output').addEventListener('change', updateVoiceSettings);
+    
+    // Add ReSpeaker event listeners only if elements exist (legacy support)
+    const respeakerEnabled = document.getElementById('respeaker-enabled');
+    if (respeakerEnabled) {
+        respeakerEnabled.addEventListener('change', updateVoiceSettings);
+    }
+    
+    const forceRespeakerOutput = document.getElementById('force-respeaker-output');
+    if (forceRespeakerOutput) {
+        forceRespeakerOutput.addEventListener('change', updateVoiceSettings);
+    }
 });
 
 function loadVoiceStatus() {
@@ -419,8 +428,17 @@ function updateVoiceStatusUI(status) {
     // Update audio controls
     document.getElementById('audio-input-enabled').checked = status.audio_input_enabled !== false;
     document.getElementById('audio-output-enabled').checked = status.audio_output_enabled !== false;
-    document.getElementById('respeaker-enabled').checked = status.respeaker_enabled || false;
-    document.getElementById('force-respeaker-output').checked = status.force_respeaker_output || false;
+    
+    // Update ReSpeaker controls only if they exist (legacy support)
+    const respeakerEnabled = document.getElementById('respeaker-enabled');
+    if (respeakerEnabled) {
+        respeakerEnabled.checked = status.respeaker_enabled || false;
+    }
+    
+    const forceRespeakerOutput = document.getElementById('force-respeaker-output');
+    if (forceRespeakerOutput) {
+        forceRespeakerOutput.checked = status.force_respeaker_output || false;
+    }
 }
 
 function showVoiceOffline() {
