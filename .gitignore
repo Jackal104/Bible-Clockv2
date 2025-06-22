@@ -160,4 +160,5 @@ wifi-config.txt
 *secret*
 *token*
 *.key
-*.pem
+*.pem.env
+*.ppn
