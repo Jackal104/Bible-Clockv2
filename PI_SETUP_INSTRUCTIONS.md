@@ -11,13 +11,13 @@ ssh admin@Bible-Clock.local
 # Navigate to home directory
 cd /home/admin
 
-# Clone or update the repository
-if [ -d "Bible-Clockv2" ]; then
-    cd Bible-Clockv2
+# Clone or update the repository to Bible-Clock-v3 directory
+if [ -d "Bible-Clock-v3" ]; then
+    cd Bible-Clock-v3
     git pull origin main
 else
-    git clone https://github.com/Jackal104/Bible-Clockv2.git
-    cd Bible-Clockv2
+    git clone https://github.com/Jackal104/Bible-Clockv2.git Bible-Clock-v3
+    cd Bible-Clock-v3
 fi
 ```
 
@@ -243,9 +243,9 @@ After=network.target
 [Service]
 Type=simple
 User=admin
-WorkingDirectory=/home/admin/Bible-Clockv2
-Environment=PATH=/home/admin/Bible-Clockv2/venv/bin
-ExecStart=/home/admin/Bible-Clockv2/venv/bin/python main.py
+WorkingDirectory=/home/admin/Bible-Clock-v3
+Environment=PATH=/home/admin/Bible-Clock-v3/venv/bin
+ExecStart=/home/admin/Bible-Clock-v3/venv/bin/python main.py
 Restart=always
 
 [Install]
