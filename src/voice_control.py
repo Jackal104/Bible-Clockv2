@@ -1,5 +1,6 @@
 """
 Enhanced Bible Clock voice control with comprehensive help system and ChatGPT integration.
+Now supports Porcupine for efficient wake word detection.
 """
 
 import os
@@ -12,6 +13,10 @@ import queue
 from datetime import datetime
 
 class BibleClockVoiceControl:
+    """
+    Bible Clock voice control with automatic Porcupine/SpeechRecognition selection.
+    Uses Porcupine for wake word detection if available, falls back to SpeechRecognition.
+    """
     def __init__(self, verse_manager, image_generator, display_manager):
         self.logger = logging.getLogger(__name__)
         self.verse_manager = verse_manager
@@ -87,9 +92,50 @@ class BibleClockVoiceControl:
         self.help_commands = self._initialize_help_system()
         
         if self.enabled:
-            self._initialize_voice_components()
+            # Try to use Porcupine first, fall back to traditional approach
+            if self._try_porcupine_initialization():
+                self.logger.info("Using Porcupine-based voice control")
+            else:
+                self.logger.info("Using traditional speech recognition for wake word")
+                self._initialize_voice_components()
+            
             if self.chatgpt_enabled:
                 self._initialize_chatgpt()
+    
+    def _try_porcupine_initialization(self):
+        """Try to initialize Porcupine voice control."""
+        try:
+            from porcupine_voice_control import PorcupineVoiceControl
+            
+            # Create Porcupine instance
+            self.porcupine_control = PorcupineVoiceControl(
+                self.verse_manager, 
+                self.image_generator, 
+                self.display_manager
+            )
+            
+            if self.porcupine_control.enabled:
+                # Use Porcupine methods
+                self.start_listening = self.porcupine_control.start_listening
+                self.stop_listening = self.porcupine_control.stop_listening
+                self.test_voice_synthesis = self.porcupine_control.test_voice_synthesis
+                self._process_command = self.porcupine_control._process_command
+                
+                # Expose Porcupine state
+                self.listening = False  # Will be managed by Porcupine
+                self.porcupine_enabled = True
+                
+                return True
+            else:
+                self.logger.warning("Porcupine initialization failed, falling back to speech recognition")
+                return False
+                
+        except ImportError:
+            self.logger.info("Porcupine not available, using traditional speech recognition")
+            return False
+        except Exception as e:
+            self.logger.warning(f"Porcupine initialization error: {e}")
+            return False
     
     def _initialize_voice_components(self):
         """Initialize speech recognition and text-to-speech with USB audio support."""
