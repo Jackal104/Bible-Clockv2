@@ -65,10 +65,43 @@ def test_porcupine():
         import pvporcupine
         import pyaudio
         
-        # Try to create a Porcupine instance
-        porcupine = pvporcupine.create(keywords=['picovoice'])
+        # Try to create a Porcupine instance (newer versions require access_key)
+        try:
+            # Try with access key from environment
+            access_key = os.getenv('PORCUPINE_ACCESS_KEY', '')
+            if access_key:
+                porcupine = pvporcupine.create(
+                    access_key=access_key,
+                    keywords=['picovoice']
+                )
+                print(f"✅ Porcupine test successful (with access key)")
+            else:
+                print("⚠️ No PORCUPINE_ACCESS_KEY found")
+                print("   Get free access key from: https://console.picovoice.ai/")
+                print("   For now, testing basic imports...")
+                
+                # Just test that we can import and get version info
+                print(f"   Porcupine version: {pvporcupine.__version__ if hasattr(pvporcupine, '__version__') else 'unknown'}")
+                
+                # Test PyAudio separately
+                p = pyaudio.PyAudio()
+                device_count = p.get_device_count()
+                print(f"   Audio devices available: {device_count}")
+                p.terminate()
+                
+                print("✅ Basic Porcupine installation verified")
+                print("   Add PORCUPINE_ACCESS_KEY to .env to enable wake word detection")
+                return True
+                
+        except Exception as inner_e:
+            if "access_key" in str(inner_e).lower():
+                print("⚠️ Porcupine requires access key (newer version)")
+                print("   Get free access key from: https://console.picovoice.ai/")
+                print("   Add PORCUPINE_ACCESS_KEY=your_key_here to .env file")
+                return True  # Installation is OK, just needs key
+            else:
+                raise inner_e
         
-        print(f"✅ Porcupine test successful")
         print(f"   Sample rate: {porcupine.sample_rate}Hz")
         print(f"   Frame length: {porcupine.frame_length}")
         print(f"   Keywords: picovoice (built-in)")
@@ -86,6 +119,7 @@ def test_porcupine():
         
     except Exception as e:
         print(f"❌ Porcupine test failed: {e}")
+        print("   Try: pip install --upgrade pvporcupine")
         return False
 
 def create_env_template():
@@ -104,10 +138,10 @@ VOICE_VOLUME=0.9
 VOICE_TIMEOUT=5
 VOICE_PHRASE_LIMIT=15
 
-# USB Audio Settings (optimized for Fifine K053 + Z120)
+# USB Audio Settings (optimized for Fifine K053 + USB Mini Speaker)
 USB_AUDIO_ENABLED=true
 USB_MIC_DEVICE_NAME="fifine_input"
-USB_SPEAKER_DEVICE_NAME="z120_output"
+USB_SPEAKER_DEVICE_NAME="usb_speaker_output"
 AUDIO_INPUT_ENABLED=true
 AUDIO_OUTPUT_ENABLED=true
 RESPEAKER_ENABLED=false
