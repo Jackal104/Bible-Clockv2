@@ -389,7 +389,14 @@ class VerseManager:
             }
         
         now = datetime.now()
-        time_display = now.strftime('%I:%M %p' if self.time_format == '12' else '%H:%M')
+        # Format time with leading zeros for hours
+        if self.time_format == '12':
+            hour_12 = now.hour % 12
+            if hour_12 == 0:
+                hour_12 = 12
+            time_display = f"{hour_12:02d}:{now.minute:02d} {now.strftime('%p')}"
+        else:
+            time_display = now.strftime('%H:%M')
         
         return {
             'reference': f'{book} - Book Summary',
@@ -399,10 +406,10 @@ class VerseManager:
             'verse': 0,    # 0 indicates summary
             'is_summary': True,
             'is_time_based_summary': True,
-            'requested_time': f'{chapter}:{verse:02d}',
+            'requested_time': f'{chapter:02d}:{verse:02d}',
             'current_time': time_display,
-            'summary_reason': f'No Bible book contains Chapter {chapter}, Verse {verse}',
-            'time_correlation': f'Time {time_display} → Chapter {chapter}:Verse {verse} → {book} Summary'
+            'summary_reason': f'No Bible book contains Chapter {chapter:02d}, Verse {verse:02d}',
+            'time_correlation': f'Time {time_display} → Chapter {chapter:02d}:Verse {verse:02d} → {book} Summary'
         }
     
     def _get_date_based_verse(self) -> Dict:
@@ -552,7 +559,7 @@ class VerseManager:
                 return None
             
             return {
-                'reference': data.get('reference', f"{book} {chapter}:{actual_verse}"),
+                'reference': data.get('reference', f"{book} {chapter:02d}:{actual_verse:02d}"),
                 'text': verse_text,
                 'book': book,
                 'chapter': chapter,
@@ -636,7 +643,7 @@ class VerseManager:
                 
                 if verse_text:
                     return {
-                        'reference': data.get('reference', f"{book} {chapter}:{actual_verse}"),
+                        'reference': data.get('reference', f"{book} {chapter:02d}:{actual_verse:02d}"),
                         'text': verse_text,
                         'book': book,
                         'chapter': chapter,
@@ -677,7 +684,7 @@ class VerseManager:
                 
                 if verse_text:
                     return {
-                        'reference': f"{book} {chapter}:{verse}",
+                        'reference': f"{book} {chapter:02d}:{verse:02d}",
                         'text': verse_text,
                         'book': book,
                         'chapter': chapter,
@@ -703,7 +710,7 @@ class VerseManager:
                         verse_text = chapter_data[str(actual_verse)]
                         
                         return {
-                            'reference': f"{book} {chapter}:{actual_verse}",
+                            'reference': f"{book} {chapter:02d}:{actual_verse:02d}",
                             'text': verse_text,
                             'book': book,
                             'chapter': chapter,

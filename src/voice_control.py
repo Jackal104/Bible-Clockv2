@@ -1056,7 +1056,11 @@ class BibleClockVoiceControl:
         """Speak the current time."""
         try:
             now = datetime.now()
-            time_str = now.strftime("It is %I:%M %p on %A, %B %d")
+            # Format time with leading zeros for hours
+            hour_12 = now.hour % 12
+            if hour_12 == 0:
+                hour_12 = 12
+            time_str = f"It is {hour_12:02d}:{now.minute:02d} {now.strftime('%p on %A, %B %d')}"
             self._speak(time_str)
         except Exception as e:
             self.logger.error(f"Error getting time: {e}")
