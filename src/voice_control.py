@@ -178,22 +178,85 @@ class BibleClockVoiceControl:
             self.enabled = False
     
     def _initialize_usb_microphone(self):
-        """Initialize USB audio microphone."""
+        """Initialize USB audio microphone with proper parameter detection."""
         try:
             import speech_recognition as sr
+            import pyaudio
             
-            # Find USB audio device
-            for i, device_info in enumerate(sr.Microphone.list_microphone_names()):
-                if self.usb_mic_device.lower() in device_info.lower() or 'usb' in device_info.lower():
-                    self.logger.info(f"Found USB audio device: {device_info}")
-                    return sr.Microphone(device_index=i, sample_rate=16000, chunk_size=1024)
+            # First try to find the specific device by name
+            device_index = None
+            device_name = None
             
-            # Fallback to default if USB device not found
-            self.logger.warning("USB audio device not found, using default microphone")
-            return sr.Microphone()
+            # If device name looks like hw:X,Y format, try to find by ALSA name
+            if self.usb_mic_device.startswith('hw:'):
+                # Convert hw:X,Y to card number for device matching
+                try:
+                    card_info = self.usb_mic_device.split(':')[1].split(',')[0]
+                    for i, name in enumerate(sr.Microphone.list_microphone_names()):
+                        if f"card {card_info}" in name.lower() or f"card{card_info}" in name.lower():
+                            device_index = i
+                            device_name = name
+                            break
+                except:
+                    pass
+            
+            # If not found by ALSA name, try by device name match
+            if device_index is None:
+                for i, name in enumerate(sr.Microphone.list_microphone_names()):
+                    if (self.usb_mic_device.lower() in name.lower() or 
+                        'usb' in name.lower() or 
+                        'fifine' in name.lower() or
+                        'audio device' in name.lower()):
+                        device_index = i
+                        device_name = name
+                        break
+            
+            if device_index is not None:
+                self.logger.info(f"Found USB audio device at index {device_index}: {device_name}")
+                
+                # Get device capabilities to set proper parameters
+                p = pyaudio.PyAudio()
+                try:
+                    device_info = p.get_device_info_by_index(device_index)
+                    max_input_channels = int(device_info['maxInputChannels'])
+                    default_sample_rate = int(device_info['defaultSampleRate'])
+                    
+                    # Use safe parameters based on device capabilities
+                    channels = min(1, max_input_channels)  # Use mono (1 channel)
+                    sample_rate = 16000 if default_sample_rate >= 16000 else 8000
+                    chunk_size = 1024
+                    
+                    self.logger.info(f"Device capabilities: {max_input_channels} channels, {default_sample_rate}Hz default rate")
+                    self.logger.info(f"Using parameters: {channels} channel(s), {sample_rate}Hz, {chunk_size} chunk size")
+                    
+                    # Create microphone with detected parameters
+                    microphone = sr.Microphone(
+                        device_index=device_index,
+                        sample_rate=sample_rate,
+                        chunk_size=chunk_size
+                    )
+                    
+                    # Test the microphone to ensure it works
+                    try:
+                        with microphone as source:
+                            # Quick test - just open and close
+                            pass
+                        self.logger.info("USB microphone test successful")
+                        return microphone
+                    except Exception as test_error:
+                        self.logger.warning(f"USB microphone test failed: {test_error}")
+                        # Fall back to simpler parameters
+                        return sr.Microphone(device_index=device_index)
+                        
+                finally:
+                    p.terminate()
+            else:
+                self.logger.warning("USB audio device not found, using default microphone")
+                return sr.Microphone()
             
         except Exception as e:
             self.logger.error(f"USB microphone initialization failed: {e}")
+            self.logger.info("Falling back to default microphone")
             return sr.Microphone()
 
     def _initialize_respeaker_microphone(self):
