@@ -7,7 +7,7 @@ This guide provides step-by-step instructions for setting up the Bible Clock v3.
 **Required Hardware:**
 - Raspberry Pi 4 (recommended) or Pi 3B+
 - **Fifine K053 USB Microphone** (cardioid, 48kHz)
-- **Logitech Z120 USB-powered speakers** (USB power + 3.5mm audio)
+- **USB Mini Speaker** (2.0 channel, dynamic driver, pure USB audio)
 - SD card (32GB+)
 - HDMI display
 - Internet connection
@@ -47,7 +47,7 @@ sudo reboot
 **What this script does:**
 - ✅ Removes conflicting ReSpeaker/PulseAudio configurations
 - ✅ Installs optimal ALSA packages (no PulseAudio)
-- ✅ Creates optimized `.asoundrc` for Fifine K053 + Z120
+- ✅ Creates optimized `.asoundrc` for Fifine K053 + USB Mini Speaker
 - ✅ Maximizes audio output levels (85% safe maximum)
 - ✅ Tests microphone recording and speaker playback
 - ✅ Updates `.env` file with correct audio settings
@@ -69,7 +69,7 @@ rm test_audio.wav
 
 **Expected results:**
 - 🎤 Recording should capture clear audio from Fifine K053
-- 🔊 Playback should be loud and clear through Z120 speakers
+- 🔊 Playback should be loud and clear through USB Mini Speaker
 
 ### Step 4: Python Environment Setup
 
@@ -171,7 +171,7 @@ WAKE_WORD=picovoice       # Display name only
 # USB Audio (optimized names)
 USB_AUDIO_ENABLED=true
 USB_MIC_DEVICE_NAME="fifine_input"
-USB_SPEAKER_DEVICE_NAME="z120_output"
+USB_SPEAKER_DEVICE_NAME="usb_speaker_output"
 ```
 
 ### Custom Wake Words (Optional)
@@ -208,11 +208,11 @@ arecord -D hw:CARD=Device,DEV=0 test.wav
 
 **Speakers not working:**
 ```bash
-# Check Z120 USB power connection
-lsusb | grep -i logitech
+# Check USB Mini Speaker connection
+lsusb | grep -i "audio\|speaker"
 
-# Check 3.5mm audio cable connection
-aplay -D hw:0,0 /usr/share/sounds/alsa/Front_Left.wav
+# Test direct USB audio output
+aplay -D hw:1,0 /usr/share/sounds/alsa/Front_Left.wav
 
 # Check volume levels
 alsamixer
@@ -228,7 +228,7 @@ alsamixer
 
 **TTS too quiet:**
 - Increase `VOICE_VOLUME` to 1.0 in `.env`
-- Check Z120 physical volume knob
+- Check USB Mini Speaker physical volume (if available)
 - Run `alsamixer` and increase levels
 
 **Porcupine not working:**
