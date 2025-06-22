@@ -99,17 +99,18 @@ PORCUPINE_SENSITIVITY=0.5
 
 # Wake Word Settings (for display purposes)
 WAKE_WORD=picovoice
-VOICE_RATE=150
-VOICE_VOLUME=0.8
+VOICE_RATE=160
+VOICE_VOLUME=0.9
 VOICE_TIMEOUT=5
 VOICE_PHRASE_LIMIT=15
 
-# USB Audio Settings
+# USB Audio Settings (optimized for Fifine K053 + Z120)
 USB_AUDIO_ENABLED=true
-USB_MIC_DEVICE_NAME="USB PnP Audio Device"
-USB_SPEAKER_DEVICE_NAME="USB PnP Audio Device"
+USB_MIC_DEVICE_NAME="fifine_input"
+USB_SPEAKER_DEVICE_NAME="z120_output"
 AUDIO_INPUT_ENABLED=true
 AUDIO_OUTPUT_ENABLED=true
+RESPEAKER_ENABLED=false
 """
     
     print("📝 Creating Porcupine .env template...")

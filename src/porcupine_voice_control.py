@@ -116,15 +116,22 @@ class PorcupineVoiceControl:
             # Find USB microphone device
             mic_device_index = self._find_usb_microphone()
             
-            # Create audio stream
-            self.audio_stream = self.pyaudio_instance.open(
-                rate=self.porcupine.sample_rate,
-                channels=1,
-                format=pyaudio.paInt16,
-                input=True,
-                input_device_index=mic_device_index,
-                frames_per_buffer=self.porcupine.frame_length
-            )
+            # Create audio stream with error handling
+            try:
+                self.audio_stream = self.pyaudio_instance.open(
+                    rate=self.porcupine.sample_rate,
+                    channels=1,
+                    format=pyaudio.paInt16,
+                    input=True,
+                    input_device_index=mic_device_index,
+                    frames_per_buffer=self.porcupine.frame_length
+                )
+                if self.audio_stream is None:
+                    raise Exception("Audio stream creation returned None")
+            except Exception as e:
+                self.logger.error(f"Failed to create audio stream: {e}")
+                self.audio_stream = None
+                raise e
             
             self.logger.info(f"Porcupine initialized: sample_rate={self.porcupine.sample_rate}, frame_length={self.porcupine.frame_length}")
             
@@ -136,9 +143,28 @@ class PorcupineVoiceControl:
             self.enabled = False
     
     def _find_usb_microphone(self):
-        """Find USB microphone device index."""
+        """Find USB microphone device index with support for named ALSA devices."""
         try:
-            # List all audio devices and find USB microphone
+            # First, try to use the named ALSA device if configured
+            if self.usb_mic_device in ['fifine_input', 'microphone', 'usb_mic']:
+                self.logger.info(f"Using named ALSA device: {self.usb_mic_device}")
+                # For named devices, try to find corresponding PyAudio device
+                device_count = self.pyaudio_instance.get_device_count()
+                
+                for i in range(device_count):
+                    device_info = self.pyaudio_instance.get_device_info_by_index(i)
+                    device_name = device_info.get('name', '').lower()
+                    
+                    # Look for Fifine or USB audio devices
+                    if (device_info.get('maxInputChannels', 0) > 0 and
+                        ('fifine' in device_name or 
+                         'k053' in device_name or
+                         'usb' in device_name and 'audio' in device_name)):
+                        
+                        self.logger.info(f"Found Fifine microphone: {device_info['name']} (index {i})")
+                        return i
+            
+            # Standard device detection
             device_count = self.pyaudio_instance.get_device_count()
             
             for i in range(device_count):
@@ -148,9 +174,9 @@ class PorcupineVoiceControl:
                 # Check if this is our USB microphone
                 if (device_info.get('maxInputChannels', 0) > 0 and
                     (self.usb_mic_device.lower() in device_name or
-                     'usb' in device_name or
                      'fifine' in device_name or
-                     'pnp audio' in device_name)):
+                     'k053' in device_name or
+                     'usb' in device_name and ('audio' in device_name or 'pnp' in device_name))):
                     
                     self.logger.info(f"Found USB microphone: {device_info['name']} (index {i})")
                     return i
@@ -211,7 +237,7 @@ class PorcupineVoiceControl:
     
     def start_listening(self):
         """Start the wake word detection loop."""
-        if not self.enabled or not self.porcupine or not self.audio_stream:
+        if not self.enabled or not self.porcupine or self.audio_stream is None:
             self.logger.warning("Cannot start listening - voice control not properly initialized")
             return
         
@@ -234,15 +260,25 @@ class PorcupineVoiceControl:
         """Stop voice control."""
         self.listening = False
         
-        if self.audio_stream:
-            self.audio_stream.stop_stream()
-            self.audio_stream.close()
+        # Safe cleanup with NoneType protection
+        if self.audio_stream is not None:
+            try:
+                self.audio_stream.stop_stream()
+                self.audio_stream.close()
+            except Exception as e:
+                self.logger.warning(f"Error stopping audio stream: {e}")
         
-        if self.pyaudio_instance:
-            self.pyaudio_instance.terminate()
+        if self.pyaudio_instance is not None:
+            try:
+                self.pyaudio_instance.terminate()
+            except Exception as e:
+                self.logger.warning(f"Error terminating PyAudio: {e}")
         
-        if self.porcupine:
-            self.porcupine.delete()
+        if self.porcupine is not None:
+            try:
+                self.porcupine.delete()
+            except Exception as e:
+                self.logger.warning(f"Error deleting Porcupine: {e}")
         
         self.logger.info("Stopped Porcupine voice control")
     
