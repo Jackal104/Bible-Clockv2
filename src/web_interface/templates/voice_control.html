@@ -278,12 +278,40 @@
                         <label class="block text-sm font-medium text-gray-700 mb-1">Voice Selection</label>
                         <select id="voice-selection" class="form-select">
                             <option value="default">Default System Voice</option>
-                            <option value="female">Female Voice (Preferred)</option>
-                            <option value="male">Male Voice</option>
-                            <option value="calm">Calm & Soothing</option>
-                            <option value="clear">Clear & Articulate</option>
+                            <option value="female">Female Voice (Legacy)</option>
+                            <option value="male">Male Voice (Legacy)</option>
+                            <option value="calm">Calm & Soothing (Legacy)</option>
+                            <option value="clear">Clear & Articulate (Legacy)</option>
                         </select>
                         <p class="text-sm text-gray-500 mt-1">Choose voice style for text-to-speech</p>
+                    </div>
+                    
+                    <!-- Piper TTS Voice Selection -->
+                    <div class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div class="flex items-center justify-between mb-3">
+                            <h5 class="text-sm font-medium text-blue-800">
+                                🎙️ Piper TTS Voices (High Quality)
+                            </h5>
+                            <button onclick="refreshPiperVoices()" class="text-xs text-blue-600 hover:text-blue-800">
+                                Refresh
+                            </button>
+                        </div>
+                        
+                        <div id="piper-voices-container">
+                            <div class="text-center text-gray-500 py-4">
+                                <div class="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-2"></div>
+                                Loading voices...
+                            </div>
+                        </div>
+                        
+                        <div class="mt-3 flex space-x-2">
+                            <button onclick="previewSelectedVoice()" class="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded hover:bg-blue-200">
+                                🔊 Preview Voice
+                            </button>
+                            <button onclick="setSelectedVoice()" class="text-xs bg-green-100 text-green-700 px-3 py-1 rounded hover:bg-green-200">
+                                ✅ Use This Voice
+                            </button>
+                        </div>
                     </div>
                     
                     <div class="flex items-center justify-between">
@@ -359,6 +387,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     loadVoiceStatus();
     loadConversationHistory();
+    loadPiperVoices();
     
     // Set up event listeners for existing elements
     document.getElementById('voice-rate').addEventListener('change', updateVoiceSettings);
@@ -694,6 +723,183 @@ function showNotification(message, type) {
     
     // Also log to console for debugging
     console.log(`${type.toUpperCase()}: ${message}`);
+}
+
+// === Piper Voice Management Functions ===
+
+let selectedPiperVoice = null;
+let availablePiperVoices = [];
+
+function loadPiperVoices() {
+    fetch('/api/voice/piper/voices')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                availablePiperVoices = data.data.voices;
+                displayPiperVoices(data.data.voices, data.data.current_voice);
+            } else {
+                showPiperVoicesError(data.error || 'Failed to load voices');
+            }
+        })
+        .catch(error => {
+            console.error('Piper voices load error:', error);
+            showPiperVoicesError('Network error loading voices');
+        });
+}
+
+function displayPiperVoices(voices, currentVoice) {
+    const container = document.getElementById('piper-voices-container');
+    
+    if (voices.length === 0) {
+        container.innerHTML = `
+            <div class="text-center text-gray-500 py-4">
+                <svg class="w-8 h-8 mx-auto mb-2 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+                </svg>
+                <p class="text-sm">No Piper voices found</p>
+                <p class="text-xs text-gray-400 mt-1">Run <code>./download_piper_voices.sh</code> to install voices</p>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = `
+        <div class="space-y-2">
+            ${voices.map(voice => `
+                <div class="flex items-center justify-between p-2 border rounded ${voice.name === currentVoice ? 'border-blue-300 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}">
+                    <div class="flex items-center">
+                        <input type="radio" 
+                               name="piper-voice" 
+                               value="${voice.name}" 
+                               id="voice-${voice.name}"
+                               ${voice.name === currentVoice ? 'checked' : ''}
+                               onchange="selectPiperVoice('${voice.name}')"
+                               class="mr-3">
+                        <div>
+                            <label for="voice-${voice.name}" class="text-sm font-medium text-gray-900 cursor-pointer">
+                                ${voice.display_name}
+                            </label>
+                            ${voice.language ? `<p class="text-xs text-gray-500">${voice.language} • ${voice.quality || 'medium'} quality</p>` : ''}
+                        </div>
+                    </div>
+                    <div class="flex space-x-1">
+                        ${voice.name === currentVoice ? 
+                            '<span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">Current</span>' : ''
+                        }
+                        <button onclick="previewVoice('${voice.name}')" 
+                                class="text-xs text-blue-600 hover:text-blue-800 px-2 py-1 rounded hover:bg-blue-50">
+                            🔊
+                        </button>
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+    `;
+    
+    // Set initial selected voice
+    selectedPiperVoice = currentVoice || (voices.length > 0 ? voices[0].name : null);
+}
+
+function showPiperVoicesError(error) {
+    const container = document.getElementById('piper-voices-container');
+    container.innerHTML = `
+        <div class="text-center text-red-500 py-4">
+            <svg class="w-8 h-8 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <p class="text-sm">${error}</p>
+            <button onclick="loadPiperVoices()" class="text-xs text-blue-600 hover:text-blue-800 mt-2">
+                Try Again
+            </button>
+        </div>
+    `;
+}
+
+function selectPiperVoice(voiceName) {
+    selectedPiperVoice = voiceName;
+    console.log('Selected Piper voice:', voiceName);
+}
+
+function previewVoice(voiceName) {
+    if (!voiceName) voiceName = selectedPiperVoice;
+    if (!voiceName) {
+        showNotification('Please select a voice first', 'error');
+        return;
+    }
+    
+    const previewText = "For God so loved the world that he gave his one and only Son, that whoever believes in him shall not perish but have eternal life.";
+    
+    showNotification('Generating voice preview...', 'info');
+    
+    fetch('/api/voice/piper/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+            voice_name: voiceName,
+            text: previewText
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const message = data.played ? 
+                `Voice preview played successfully (${data.audio_file_size} bytes)` :
+                `Voice preview generated (${data.audio_file_size} bytes) - check audio settings if you can't hear it`;
+            showNotification(message, 'success');
+        } else {
+            showNotification(`Preview failed: ${data.error}`, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Voice preview error:', error);
+        showNotification('Network error during voice preview', 'error');
+    });
+}
+
+function previewSelectedVoice() {
+    if (!selectedPiperVoice) {
+        showNotification('Please select a voice first', 'error');
+        return;
+    }
+    previewVoice(selectedPiperVoice);
+}
+
+function setSelectedVoice() {
+    if (!selectedPiperVoice) {
+        showNotification('Please select a voice first', 'error');
+        return;
+    }
+    
+    const voiceName = availablePiperVoices.find(v => v.name === selectedPiperVoice)?.display_name || selectedPiperVoice;
+    
+    if (!confirm(`Set "${voiceName}" as your Bible Clock voice?\n\nThis will be used for all voice responses.`)) {
+        return;
+    }
+    
+    fetch('/api/voice/piper/set-voice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ voice_name: selectedPiperVoice })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification(data.message, 'success');
+            // Refresh the voice list to show the new current voice
+            setTimeout(loadPiperVoices, 1000);
+        } else {
+            showNotification(`Failed to set voice: ${data.error}`, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Set voice error:', error);
+        showNotification('Network error setting voice', 'error');
+    });
+}
+
+function refreshPiperVoices() {
+    showNotification('Refreshing voice list...', 'info');
+    loadPiperVoices();
 }
 </script>
 {% endblock %}

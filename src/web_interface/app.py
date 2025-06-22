@@ -550,6 +550,246 @@ def create_app(verse_manager, image_generator, display_manager, service_manager,
             app.logger.error(f"Voice settings API error: {e}")
             return jsonify({'success': False, 'error': str(e)}), 500
     
+    # === Piper Voice Management API ===
+    
+    @app.route('/api/voice/piper/voices', methods=['GET'])
+    def get_piper_voices():
+        """Get available Piper TTS voices."""
+        try:
+            import os
+            import glob
+            from pathlib import Path
+            
+            voices_dir = Path.home() / ".local" / "share" / "piper" / "voices"
+            available_voices = []
+            
+            if voices_dir.exists():
+                # Find all .onnx voice model files
+                voice_files = glob.glob(str(voices_dir / "*.onnx"))
+                
+                for voice_file in voice_files:
+                    voice_name = os.path.basename(voice_file).replace('.onnx', '')
+                    config_file = voice_file + '.json'
+                    
+                    # Get voice info from config if available
+                    voice_info = {
+                        'name': voice_name,
+                        'display_name': _format_voice_name(voice_name),
+                        'file_path': voice_file,
+                        'available': os.path.exists(voice_file)
+                    }
+                    
+                    # Read config for additional info
+                    if os.path.exists(config_file):
+                        try:
+                            import json
+                            with open(config_file, 'r') as f:
+                                config = json.load(f)
+                                voice_info.update({
+                                    'language': config.get('language', 'en_US'),
+                                    'quality': config.get('quality', 'medium'),
+                                    'sample_rate': config.get('audio', {}).get('sample_rate', 22050),
+                                    'speaker_id': config.get('speaker_id_map', {})
+                                })
+                        except:
+                            pass
+                    
+                    available_voices.append(voice_info)
+            
+            # Sort voices by name
+            available_voices.sort(key=lambda x: x['display_name'])
+            
+            return jsonify({
+                'success': True,
+                'data': {
+                    'voices': available_voices,
+                    'voices_dir': str(voices_dir),
+                    'current_voice': _get_current_piper_voice()
+                }
+            })
+            
+        except Exception as e:
+            app.logger.error(f"Piper voices API error: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    @app.route('/api/voice/piper/preview', methods=['POST'])
+    def preview_piper_voice():
+        """Preview a Piper TTS voice."""
+        try:
+            data = request.get_json()
+            if not data or 'voice_name' not in data:
+                return jsonify({'success': False, 'error': 'Voice name required'}), 400
+            
+            voice_name = data['voice_name']
+            preview_text = data.get('text', "For God so loved the world that he gave his one and only Son.")
+            
+            import subprocess
+            import tempfile
+            import os
+            from pathlib import Path
+            
+            # Get voice model path
+            voices_dir = Path.home() / ".local" / "share" / "piper" / "voices"
+            voice_model = voices_dir / f"{voice_name}.onnx"
+            
+            if not voice_model.exists():
+                return jsonify({'success': False, 'error': f'Voice model not found: {voice_name}'}), 404
+            
+            # Generate speech
+            with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_file:
+                temp_path = temp_file.name
+            
+            try:
+                # Try to find piper binary
+                piper_cmd = None
+                for cmd in ['piper', '/usr/local/bin/piper', './piper/piper']:
+                    try:
+                        result = subprocess.run([cmd, '--help'], capture_output=True, timeout=5)
+                        if result.returncode == 0:
+                            piper_cmd = cmd
+                            break
+                    except:
+                        continue
+                
+                if not piper_cmd:
+                    return jsonify({'success': False, 'error': 'Piper TTS not found. Please install Piper first.'}), 500
+                
+                # Run Piper TTS
+                result = subprocess.run([
+                    piper_cmd,
+                    '--model', str(voice_model),
+                    '--output_file', temp_path
+                ], input=preview_text, text=True, capture_output=True, timeout=30)
+                
+                if result.returncode == 0:
+                    file_size = os.path.getsize(temp_path)
+                    
+                    # Try to play the audio
+                    play_success = False
+                    try:
+                        play_result = subprocess.run(['aplay', temp_path], 
+                                                   capture_output=True, timeout=10)
+                        play_success = play_result.returncode == 0
+                    except:
+                        pass
+                    
+                    return jsonify({
+                        'success': True,
+                        'message': f'Voice preview generated ({file_size} bytes)',
+                        'voice_name': voice_name,
+                        'played': play_success,
+                        'audio_file_size': file_size
+                    })
+                else:
+                    return jsonify({
+                        'success': False,
+                        'error': f'Piper TTS failed: {result.stderr}'
+                    }), 500
+                    
+            finally:
+                # Clean up
+                try:
+                    if os.path.exists(temp_path):
+                        os.unlink(temp_path)
+                except:
+                    pass
+                    
+        except Exception as e:
+            app.logger.error(f"Voice preview API error: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    @app.route('/api/voice/piper/set-voice', methods=['POST'])
+    def set_piper_voice():
+        """Set the current Piper TTS voice."""
+        try:
+            data = request.get_json()
+            if not data or 'voice_name' not in data:
+                return jsonify({'success': False, 'error': 'Voice name required'}), 400
+            
+            voice_name = data['voice_name']
+            
+            # Update voice control if available
+            if hasattr(app.service_manager, 'voice_control') and app.service_manager.voice_control:
+                voice_control = app.service_manager.voice_control
+                
+                # Check if voice control uses Piper TTS
+                if hasattr(voice_control, 'piper_model'):
+                    voice_control.piper_model = f"{voice_name}.onnx"
+                    
+                # Update environment variable for persistence
+                os.environ['PIPER_VOICE_MODEL'] = f"{voice_name}.onnx"
+                
+                # Update .env file if it exists
+                try:
+                    env_file = Path('.env')
+                    if env_file.exists():
+                        lines = []
+                        voice_updated = False
+                        
+                        with open(env_file, 'r') as f:
+                            for line in f:
+                                if line.startswith('PIPER_VOICE_MODEL='):
+                                    lines.append(f'PIPER_VOICE_MODEL={voice_name}.onnx\n')
+                                    voice_updated = True
+                                else:
+                                    lines.append(line)
+                        
+                        if not voice_updated:
+                            lines.append(f'PIPER_VOICE_MODEL={voice_name}.onnx\n')
+                        
+                        with open(env_file, 'w') as f:
+                            f.writelines(lines)
+                except Exception as e:
+                    app.logger.warning(f"Could not update .env file: {e}")
+                
+                return jsonify({
+                    'success': True,
+                    'message': f'Voice set to {_format_voice_name(voice_name)}',
+                    'voice_name': voice_name
+                })
+            else:
+                return jsonify({'success': False, 'error': 'Voice control not available'}), 500
+                
+        except Exception as e:
+            app.logger.error(f"Set voice API error: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    def _format_voice_name(voice_name):
+        """Format voice name for display."""
+        # Convert en_US-amy-medium to "Amy (US, Medium)"
+        parts = voice_name.split('-')
+        if len(parts) >= 3:
+            lang = parts[0]
+            name = parts[1].title()
+            quality = parts[2].title()
+            
+            lang_map = {
+                'en_US': 'US English',
+                'en_UK': 'UK English',
+                'en_GB': 'British English'
+            }
+            
+            lang_display = lang_map.get(lang, lang)
+            return f"{name} ({lang_display}, {quality})"
+        
+        return voice_name.replace('_', ' ').replace('-', ' ').title()
+    
+    def _get_current_piper_voice():
+        """Get the currently selected Piper voice."""
+        try:
+            # Check voice control first
+            if hasattr(app.service_manager, 'voice_control') and app.service_manager.voice_control:
+                voice_control = app.service_manager.voice_control
+                if hasattr(voice_control, 'piper_model'):
+                    return voice_control.piper_model.replace('.onnx', '')
+            
+            # Check environment variable
+            current_voice = os.getenv('PIPER_VOICE_MODEL', 'en_US-amy-medium.onnx')
+            return current_voice.replace('.onnx', '')
+            
+        except:
+            return 'en_US-amy-medium'
+    
     # === Audio API Endpoints ===
     
     @app.route('/api/audio/devices', methods=['GET'])
