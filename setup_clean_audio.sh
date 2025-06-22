@@ -1,6 +1,6 @@
 #!/bin/bash
 # Clean Audio Setup for Bible Clock v3.0
-# Optimized for Fifine K053 USB Microphone + Logitech Z120 USB-powered speakers
+# Optimized for Fifine K053 USB Microphone + USB Mini Speaker (30mm driver, 2 channels)
 # This script removes conflicting configurations and sets up optimal audio
 
 set -e
@@ -9,11 +9,15 @@ echo "🎵 Bible Clock Clean Audio Setup"
 echo "================================="
 echo "Target Hardware:"
 echo "  📱 Fifine K053 USB Microphone (cardioid, 48kHz)"
-echo "  🔊 Logitech Z120 USB-powered speakers (3.5mm audio)"
+echo "  🔊 USB Mini Speaker (30mm driver, 2 channels, pure USB audio)"
 echo ""
 
-# Get the current user (will be 'admin' on Pi)
+# Get the current user (will be 'admin' on Pi) 
 CURRENT_USER=${USER:-$(whoami)}
+if [ "$CURRENT_USER" = "root" ]; then
+    # If running as root, use the actual logged-in user
+    CURRENT_USER=${SUDO_USER:-admin}
+fi
 USER_HOME="/home/$CURRENT_USER"
 
 echo "🧹 Step 1: Clean up conflicting configurations..."
@@ -98,23 +102,43 @@ detect_fifine_mic() {
     echo "$FIFINE_CARD"
 }
 
-# Function to detect audio output (Pi built-in for Z120)
+# Function to detect USB Mini Speaker
 detect_audio_output() {
-    echo "   Scanning for audio output..."
+    echo "   Scanning for USB Mini Speaker..."
     
-    # For Z120 setup, we use Pi's built-in audio (card 0) to 3.5mm output
+    # Look for USB audio output devices
     if [ -f /proc/asound/cards ]; then
-        # Look for bcm2835 (Pi built-in audio)
+        # First, look for USB audio devices
+        while IFS= read -r line; do
+            if echo "$line" | grep -qi "usb.*audio\|speaker\|mini"; then
+                CARD_NUM=$(echo "$line" | grep -o "card [0-9]" | cut -d' ' -f2)
+                echo "   ✅ Found USB Mini Speaker: card $CARD_NUM ($line)"
+                echo "$CARD_NUM"
+                return
+            fi
+        done < /proc/asound/cards
+        
+        # Check playback devices for USB audio
+        while IFS= read -r line; do
+            if echo "$line" | grep -qi "usb.*device.*playback"; then
+                CARD_NUM=$(echo "$line" | grep -o "card [0-9]" | cut -d' ' -f2)
+                echo "   ✅ Found USB playback device: card $CARD_NUM ($line)"
+                echo "$CARD_NUM"
+                return
+            fi
+        done < <(aplay -l 2>/dev/null)
+        
+        # Fallback to Pi built-in audio if no USB speaker found
         if grep -q "bcm2835" /proc/asound/cards; then
-            echo "   ✅ Found Pi built-in audio for Z120 output"
+            echo "   ⚠️ USB speaker not found, using Pi built-in audio"
             echo "0"
             return
         fi
         
-        # Fallback to first available playback device
+        # Last resort - first available playback device
         PLAYBACK_CARD=$(aplay -l 2>/dev/null | grep "card" | head -1 | grep -o "card [0-9]" | cut -d' ' -f2)
         if [ -n "$PLAYBACK_CARD" ]; then
-            echo "   ✅ Found playback device: card $PLAYBACK_CARD"
+            echo "   ✅ Using first available playback device: card $PLAYBACK_CARD"
             echo "$PLAYBACK_CARD"
             return
         fi
@@ -141,15 +165,15 @@ fi
 echo ""
 echo "📁 Step 4: Create optimal ALSA configuration..."
 
-# Create optimized .asoundrc for Fifine K053 + Z120 setup
+# Create optimized .asoundrc for Fifine K053 + USB Mini Speaker setup
 cat > "$USER_HOME/.asoundrc" << EOF
 # Bible Clock Audio Configuration
-# Optimized for Fifine K053 (USB mic) + Logitech Z120 (USB power, 3.5mm audio)
+# Optimized for Fifine K053 (USB mic) + USB Mini Speaker (pure USB audio)
 
 # Default device (asymmetric: different input/output)
 pcm.!default {
     type asym
-    playback.pcm "z120_output"
+    playback.pcm "usb_speaker_output"
     capture.pcm "fifine_input"
 }
 
@@ -166,13 +190,13 @@ pcm.fifine_input {
     route_policy "average"
 }
 
-# Z120 Speaker Output (via Pi 3.5mm)
-pcm.z120_output {
+# USB Mini Speaker Output (30mm driver, 2 channels)
+pcm.usb_speaker_output {
     type plug
     slave {
         pcm "hw:${OUTPUT_CARD},0"
-        rate 44100          # Standard audio output rate
-        channels 2          # Stereo speakers
+        rate 44100          # Standard audio output rate (works with most USB speakers)
+        channels 2          # 2 channel stereo (30mm driver)
         format S16_LE       # 16-bit little endian
     }
 }
@@ -191,7 +215,7 @@ pcm.microphone {
 
 pcm.speakers {
     type plug
-    slave.pcm "z120_output"
+    slave.pcm "usb_speaker_output"
 }
 
 # Alternative device names
@@ -200,9 +224,14 @@ pcm.usb_mic {
     slave.pcm "fifine_input"
 }
 
+pcm.usb_speakers {
+    type plug
+    slave.pcm "usb_speaker_output"
+}
+
 pcm.headphones {
     type plug
-    slave.pcm "z120_output"
+    slave.pcm "usb_speaker_output"
 }
 EOF
 
@@ -211,9 +240,9 @@ echo "✅ ALSA configuration created: $USER_HOME/.asoundrc"
 echo ""
 echo "🔊 Step 5: Maximize audio output levels..."
 
-# Force Pi to use 3.5mm output (for Z120 connection)
-echo "   Setting Pi audio output to 3.5mm jack..."
-sudo amixer cset numid=3 1 >/dev/null 2>&1 || true
+# For pure USB audio setup, ensure proper USB audio routing
+echo "   Configuring USB audio routing..."
+# Note: USB speakers don't need the 3.5mm force setting
 
 # Set output volume to maximum safe level
 echo "   Setting output volume to 85% (safe maximum)..."
@@ -238,8 +267,8 @@ timeout 6s arecord -D fifine_input -f S16_LE -r 48000 -c 1 test_mic.wav >/dev/nu
     echo "   ✅ Microphone recording successful"
     
     # Test speaker playback
-    echo "   Testing Z120 speaker playback..."
-    if aplay -D z120_output test_mic.wav >/dev/null 2>&1; then
+    echo "   Testing USB Mini Speaker playback..."
+    if aplay -D usb_speaker_output test_mic.wav >/dev/null 2>&1; then
         echo "   ✅ Speaker playback successful"
         AUDIO_TEST_PASSED=true
     else
@@ -273,7 +302,7 @@ if [ -f ".env" ]; then
     
     # Update device names
     sed -i 's/^USB_MIC_DEVICE_NAME=.*/USB_MIC_DEVICE_NAME="fifine_input"/' .env
-    sed -i 's/^USB_SPEAKER_DEVICE_NAME=.*/USB_SPEAKER_DEVICE_NAME="z120_output"/' .env
+    sed -i 's/^USB_SPEAKER_DEVICE_NAME=.*/USB_SPEAKER_DEVICE_NAME="usb_speaker_output"/' .env
     
     # Set optimal voice settings
     sed -i 's/^VOICE_VOLUME=.*/VOICE_VOLUME=0.9/' .env
@@ -290,7 +319,7 @@ RESPEAKER_ENABLED=false
 AUDIO_INPUT_ENABLED=true
 AUDIO_OUTPUT_ENABLED=true
 USB_MIC_DEVICE_NAME="fifine_input"
-USB_SPEAKER_DEVICE_NAME="z120_output"
+USB_SPEAKER_DEVICE_NAME="usb_speaker_output"
 VOICE_VOLUME=0.9
 VOICE_RATE=160
 WAKE_WORD=bible clock
@@ -305,7 +334,7 @@ echo "======================="
 echo ""
 echo "📊 Configuration Summary:"
 echo "   🎤 Input Device: Fifine K053 (card $FIFINE_CARD) - 48kHz, mono"
-echo "   🔊 Output Device: Pi 3.5mm to Z120 (card $OUTPUT_CARD) - 44.1kHz, stereo"
+echo "   🔊 Output Device: USB Mini Speaker (card $OUTPUT_CARD) - 44.1kHz, 2.0 stereo"
 echo "   📁 Config File: $USER_HOME/.asoundrc"
 echo "   🔊 Volume Level: 85% (safe maximum)"
 echo "   ⚙️ Bible Clock: .env file updated"
@@ -335,9 +364,10 @@ echo "      ./start_bible_clock.sh"
 echo ""
 echo "💡 Troubleshooting:"
 echo "   • If audio doesn't work, check USB connections"
-echo "   • Z120 speakers need USB power AND 3.5mm audio cable"
+echo "   • USB Mini Speaker needs secure USB connection for both power and audio"
 echo "   • Run 'alsamixer' to adjust levels if needed"
 echo "   • Check 'arecord -l' and 'aplay -l' for device detection"
+echo "   • Try different USB ports if speaker not detected"
 
 # Show current audio device status
 echo ""
