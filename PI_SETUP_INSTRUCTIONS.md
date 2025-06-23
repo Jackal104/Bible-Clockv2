@@ -174,17 +174,28 @@ python3 src/chatgpt_voice_control.py  # ChatGPT + Piper voice control
 python3 src/porcupine_voice_control.py  # Porcupine wake word detection
 ```
 
+## Quick Start - Complete Voice Control System
+
+**After setup, run the enhanced voice control system:**
+```bash
+# Verify all components are ready
+python3 setup_voice_control.py
+
+# Run the complete voice control system
+python3 bible_clock_voice_complete.py
+```
+
 ## Expected Voice Flow
 
-1. **Say "Bible Clock"** (or "picovoice" if using default)
-2. **Wait for response** ("Yes?" or beep)
+1. **Amy announces:** "Bible Clock voice control with ChatGPT is ready"
+2. **Say "Bible Clock"** → Amy responds: "Yes, how can I help you?"
 3. **Say your command:**
    - "Explain this verse" → Current verse explanation via ChatGPT
    - "What does John 3:16 say?" → Bible question via ChatGPT
    - "Next verse" → Navigate to next verse
    - "Previous verse" → Navigate to previous verse
    - "Read current verse" → Speak current verse
-4. **Amy voice responds** via Piper TTS
+4. **Amy voice responds** via Piper TTS through USB speakers
 
 ## Troubleshooting
 
