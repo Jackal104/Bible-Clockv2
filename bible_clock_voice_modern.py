@@ -40,9 +40,9 @@ class ModernBibleClockVoice:
         # API configuration
         self.openai_api_key = os.getenv('OPENAI_API_KEY', '')
         self.chatgpt_model = os.getenv('CHATGPT_MODEL', 'gpt-3.5-turbo')
-        self.max_tokens = int(os.getenv('CHATGPT_MAX_TOKENS', '150'))
+        self.max_tokens = int(os.getenv('CHATGPT_MAX_TOKENS', '50'))
         self.system_prompt = os.getenv('CHATGPT_SYSTEM_PROMPT', 
-            'You are a knowledgeable Bible study assistant. Provide accurate, thoughtful responses about the Bible, Christianity, and faith. Keep responses concise and meaningful, suitable for voice interaction.')
+            'You are a knowledgeable Bible study assistant. Provide accurate, thoughtful responses about the Bible, Christianity, and faith. Keep responses very brief (1-2 sentences max), suitable for voice interaction.')
         
         # Wake word configuration
         self.wake_word = 'Bible Clock'
@@ -127,19 +127,20 @@ class ModernBibleClockVoice:
             with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_file:
                 temp_path = temp_file.name
             
-            # Generate audio with Piper - optimized for speed
+            # Generate audio with Piper - maximum speed optimization
             result = subprocess.run([
                 'piper',
                 '--model', self.piper_model_path,
                 '--output_file', temp_path,
-                '--length_scale', '0.8',  # Speak 20% faster
-                '--noise_scale', '0.3'    # Reduce processing time
+                '--length_scale', '0.6',  # Speak 40% faster
+                '--noise_scale', '0.1',   # Minimal noise for faster processing
+                '--sentence_silence', '0.1'  # Reduce pauses between sentences
             ], input=text, text=True, capture_output=True)
             
             if result.returncode == 0:
-                # Play audio through correct USB speakers with minimal buffering
+                # Play audio through correct USB speakers with maximum speed
                 subprocess.run(['aplay', '-D', self.usb_speaker_device, 
-                              '--buffer-size=1024', temp_path], 
+                              '--buffer-size=512', '--period-size=256', temp_path], 
                              capture_output=True)
                 logger.info("Audio played successfully")
             else:
