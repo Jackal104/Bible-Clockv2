@@ -394,8 +394,8 @@ def main():
         while True:
             # Wait for wake word
             if voice_system.listen_for_wake_word():
-                voice_system.speak_with_amy("Yes?")
-                # Listen for command after wake word
+                # Skip "Yes?" for instant response - go straight to listening
+                print("🎯 Wake word detected! Listening for command...")
                 command = voice_system.listen_for_command()
                 if command:
                     voice_system.process_voice_command(command)
