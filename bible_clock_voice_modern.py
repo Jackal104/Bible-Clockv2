@@ -119,7 +119,7 @@ class ModernBibleClockVoice:
                 self.openai_client = None
     
     def speak_with_amy(self, text):
-        """Convert text to speech using Piper Amy voice with correct audio routing."""
+        """Convert text to speech using Piper Amy voice with optimized speed."""
         try:
             logger.info(f"Speaking: {text[:50]}...")
             
@@ -127,16 +127,19 @@ class ModernBibleClockVoice:
             with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_file:
                 temp_path = temp_file.name
             
-            # Generate audio with Piper
+            # Generate audio with Piper - optimized for speed
             result = subprocess.run([
                 'piper',
                 '--model', self.piper_model_path,
-                '--output_file', temp_path
+                '--output_file', temp_path,
+                '--length_scale', '0.8',  # Speak 20% faster
+                '--noise_scale', '0.3'    # Reduce processing time
             ], input=text, text=True, capture_output=True)
             
             if result.returncode == 0:
-                # Play audio through correct USB speakers
-                subprocess.run(['aplay', '-D', self.usb_speaker_device, temp_path], 
+                # Play audio through correct USB speakers with minimal buffering
+                subprocess.run(['aplay', '-D', self.usb_speaker_device, 
+                              '--buffer-size=1024', temp_path], 
                              capture_output=True)
                 logger.info("Audio played successfully")
             else:
@@ -378,9 +381,8 @@ def main():
         return
     
     # Wake word is always available with speech recognition
-    print(f"🎯 Wake word: '{voice_system.wake_word}'")
-    voice_system.speak_with_amy(f"Bible Clock voice control ready. Say {voice_system.wake_word} to activate.")
-    wake_word_mode = True
+    print(f"🎯 Wake word: '{voice_system.wake_word}' - Ready!")
+    # Skip startup voice message for instant readiness
     
     print("\n🎯 VOICE COMMANDS:")
     print("• 'explain this verse' - Current verse explanation")  
@@ -404,10 +406,7 @@ def main():
         pass
     
     print("\n👋 Bible Clock voice control stopped.")
-    try:
-        voice_system.speak_with_amy("Goodbye!")
-    except:
-        pass
+    # Skip goodbye voice message for faster shutdown
 
 if __name__ == "__main__":
     main()
