@@ -34,13 +34,18 @@ class ModernBibleClockVoice:
         self.voice_timeout = int(os.getenv('VOICE_TIMEOUT', '10'))
         
         # Audio device configuration
-        self.usb_speaker_device = 'plughw:1,0'  # UACDemoV1.0 speakers
-        self.usb_mic_device_index = 2  # USB PnP Audio Device
+        self.usb_speaker_device = 'plughw:2,0'  # UACDemoV1.0 speakers
+        self.usb_mic_device = 'plughw:1,0'  # USB PnP Audio Device
         
         # API configuration
         self.openai_api_key = os.getenv('OPENAI_API_KEY', '')
         self.chatgpt_model = os.getenv('CHATGPT_MODEL', 'gpt-3.5-turbo')
         self.max_tokens = int(os.getenv('CHATGPT_MAX_TOKENS', '150'))
+        
+        # Wake word configuration
+        self.porcupine_access_key = os.getenv('PORCUPINE_ACCESS_KEY', '')
+        self.wake_word = os.getenv('WAKE_WORD', 'bible-clock')
+        self.keyword_path = os.getenv('PORCUPINE_KEYWORD_PATH', '/home/admin/Bible-Clock-v3/Bible-Clock_en_raspberry-pi_v3_0_0.ppn')
         
         # Piper TTS configuration
         self.piper_model_path = os.path.expanduser('~/.local/share/piper/voices/en_US-amy-medium.onnx')
@@ -48,7 +53,7 @@ class ModernBibleClockVoice:
         # Voice components
         self.verse_manager = None
         self.recognizer = None
-        self.microphone = None
+        self.porcupine = None
         self.openai_client = None
         
         if self.enabled:
@@ -68,10 +73,23 @@ class ModernBibleClockVoice:
             self.recognizer.dynamic_energy_threshold = True
             self.recognizer.pause_threshold = 0.8
             self.recognizer.operation_timeout = self.voice_timeout
+            logger.info("Speech recognizer initialized")
             
-            # Initialize microphone
-            self.microphone = sr.Microphone(device_index=self.usb_mic_device_index)
-            logger.info(f"USB microphone initialized (device {self.usb_mic_device_index})")
+            # Initialize Porcupine wake word detection
+            if self.porcupine_access_key and Path(self.keyword_path).exists():
+                try:
+                    import pvporcupine
+                    self.porcupine = pvporcupine.create(
+                        access_key=self.porcupine_access_key,
+                        keyword_paths=[self.keyword_path]
+                    )
+                    logger.info(f"Porcupine wake word detection initialized for '{self.wake_word}'")
+                except Exception as e:
+                    logger.warning(f"Porcupine initialization failed: {e}")
+                    self.porcupine = None
+            else:
+                logger.warning("No Porcupine access key or keyword file - wake word disabled")
+                self.porcupine = None
             
             # Test Piper TTS
             if not Path(self.piper_model_path).exists():
@@ -254,22 +272,85 @@ When asked to "explain this verse" or similar, refer to the current verse displa
             logger.error(f"Command processing error: {e}")
             self.speak_with_amy("I'm sorry, I encountered an error processing your request.")
     
+    def listen_for_wake_word(self):
+        """Listen for wake word using Porcupine."""
+        if not self.porcupine:
+            return False
+            
+        try:
+            import pyaudio
+            import struct
+            
+            # Audio configuration for Porcupine (16kHz, 16-bit, mono)
+            audio = pyaudio.PyAudio()
+            
+            # Use ALSA directly for better USB microphone support
+            mic_stream = audio.open(
+                format=pyaudio.paInt16,
+                channels=1,
+                rate=self.porcupine.sample_rate,
+                input=True,
+                frames_per_buffer=self.porcupine.frame_length,
+                input_device_index=None,  # Let ALSA handle device selection
+            )
+            
+            logger.info(f"👂 Listening for wake word '{self.wake_word}'...")
+            
+            while True:
+                pcm = mic_stream.read(self.porcupine.frame_length, exception_on_overflow=False)
+                pcm = struct.unpack_from("h" * self.porcupine.frame_length, pcm)
+                
+                keyword_index = self.porcupine.process(pcm)
+                if keyword_index >= 0:
+                    logger.info(f"🎯 Wake word '{self.wake_word}' detected!")
+                    mic_stream.close()
+                    audio.terminate()
+                    return True
+                    
+        except Exception as e:
+            logger.error(f"Wake word detection error: {e}")
+            if 'mic_stream' in locals():
+                mic_stream.close()
+            if 'audio' in locals():
+                audio.terminate()
+            return False
+    
     def listen_for_command(self):
-        """Listen for a single voice command."""
+        """Listen for a single voice command using ALSA directly."""
         try:
             print("🎤 Listening... speak your command now!")
             
-            with self.microphone as source:
-                self.recognizer.adjust_for_ambient_noise(source, duration=0.5)
-                audio = self.recognizer.listen(source, timeout=8, phrase_time_limit=10)
+            # Record audio using ALSA directly for better USB mic support
+            import subprocess
+            import tempfile
+            import wave
+            
+            with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_file:
+                temp_path = temp_file.name
+            
+            # Record 5 seconds of audio using arecord
+            result = subprocess.run([
+                'arecord', '-D', self.usb_mic_device, 
+                '-f', 'S16_LE', '-r', '16000', '-c', '1',
+                '-d', '5', temp_path
+            ], capture_output=True, text=True)
+            
+            if result.returncode != 0:
+                logger.error(f"Recording failed: {result.stderr}")
+                os.unlink(temp_path)
+                return None
+            
+            # Use speech recognition on the recorded file
+            with sr.AudioFile(temp_path) as source:
+                audio = self.recognizer.record(source)
             
             command = self.recognizer.recognize_google(audio).lower()
             print(f"✅ Command: '{command}'")
+            
+            # Clean up
+            os.unlink(temp_path)
             return command
             
-        except sr.WaitTimeoutError:
-            print("⏰ No speech detected - try again")
-            return None
         except sr.UnknownValueError:
             print("❓ Couldn't understand - try speaking more clearly")
             return None
@@ -286,6 +367,7 @@ def main():
     print("=" * 60)
     print("✅ Version-compatible OpenAI API")
     print("✅ USB audio device support")
+    print("✅ Wake word detection")
     print("✅ Automatic error recovery")
     print("=" * 60)
     
@@ -296,36 +378,57 @@ def main():
         print("❌ Voice control disabled. Check configuration.")
         return
     
-    # Initial announcement
-    voice_system.speak_with_amy("Bible Clock modern voice control ready. Press space to speak.")
+    # Check wake word availability
+    if voice_system.porcupine:
+        print(f"🎯 Wake word: '{voice_system.wake_word}'")
+        voice_system.speak_with_amy(f"Bible Clock voice control ready. Say {voice_system.wake_word} to activate.")
+        wake_word_mode = True
+    else:
+        print("⚠️ Wake word disabled - using manual mode")
+        voice_system.speak_with_amy("Bible Clock voice control ready. Press enter to speak.")
+        wake_word_mode = False
     
-    print("\n🎯 COMMANDS:")
-    print("• Press SPACE+ENTER, then speak your command")
+    print("\n🎯 VOICE COMMANDS:")
     print("• 'explain this verse' - Current verse explanation")  
     print("• 'what does john 3:16 say' - Bible questions")
     print("• 'next verse' / 'previous verse' - Navigation")
     print("• 'read current verse' - Hear current verse")
-    print("• Type 'quit' to exit")
+    print("• Press Ctrl+C to exit")
     print("=" * 60)
     
     try:
         while True:
-            # Wait for manual trigger
-            user_input = input("\nPress SPACE+ENTER to speak (or 'quit'): ").strip().lower()
-            
-            if user_input in ['quit', 'q', 'exit']:
-                break
-            
-            # Listen for command
-            command = voice_system.listen_for_command()
-            if command:
-                voice_system.process_voice_command(command)
+            if wake_word_mode:
+                # Wait for wake word
+                if voice_system.listen_for_wake_word():
+                    voice_system.speak_with_amy("Yes?")
+                    # Listen for command after wake word
+                    command = voice_system.listen_for_command()
+                    if command:
+                        voice_system.process_voice_command(command)
+                else:
+                    # Wake word detection failed, wait a bit
+                    time.sleep(1)
+            else:
+                # Manual trigger mode
+                user_input = input("\nPress ENTER to speak (or 'quit'): ").strip().lower()
+                
+                if user_input in ['quit', 'q', 'exit']:
+                    break
+                
+                # Listen for command
+                command = voice_system.listen_for_command()
+                if command:
+                    voice_system.process_voice_command(command)
     
     except KeyboardInterrupt:
         pass
     
     print("\n👋 Bible Clock voice control stopped.")
-    voice_system.speak_with_amy("Goodbye!")
+    try:
+        voice_system.speak_with_amy("Goodbye!")
+    except:
+        pass
 
 if __name__ == "__main__":
     main()
