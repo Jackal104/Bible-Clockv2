@@ -274,7 +274,7 @@ When asked to "explain this verse" or similar, refer to the current verse displa
                 result = subprocess.run([
                     'arecord', '-D', self.usb_mic_device,
                     '-f', 'S16_LE', '-r', '16000', '-c', '1',
-                    '-d', '1.5', temp_path
+                    '-d', '2', temp_path
                 ], capture_output=True, text=True)
                 
                 if result.returncode != 0:
