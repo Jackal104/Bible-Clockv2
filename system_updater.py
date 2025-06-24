@@ -15,11 +15,12 @@ import shutil
 import psutil
 
 # Configure logging
+log_file = Path.home() / 'bible-clock-updater.log'
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('/var/log/bible-clock-updater.log'),
+        logging.FileHandler(log_file),
         logging.StreamHandler()
     ]
 )

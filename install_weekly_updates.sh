@@ -1,8 +1,6 @@
 #!/bin/bash
-"""
-Install Weekly Automatic Updates for Bible Clock
-Sets up cron job and systemd service for reliable updates
-"""
+# Install Weekly Automatic Updates for Bible Clock
+# Sets up cron job and systemd service for reliable updates
 
 echo "🔄 Installing Bible Clock Weekly Update System"
 echo "=============================================="
