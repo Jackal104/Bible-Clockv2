@@ -43,9 +43,7 @@ class ModernBibleClockVoice:
         self.max_tokens = int(os.getenv('CHATGPT_MAX_TOKENS', '150'))
         
         # Wake word configuration
-        self.porcupine_access_key = os.getenv('PORCUPINE_ACCESS_KEY', '')
-        self.wake_word = os.getenv('WAKE_WORD', 'bible-clock')
-        self.keyword_path = os.getenv('PORCUPINE_KEYWORD_PATH', '/home/admin/Bible-Clock-v3/Bible-Clock_en_raspberry-pi_v3_0_0.ppn')
+        self.wake_word = 'Bible Clock'
         
         # Piper TTS configuration
         self.piper_model_path = os.path.expanduser('~/.local/share/piper/voices/en_US-amy-medium.onnx')
@@ -53,7 +51,6 @@ class ModernBibleClockVoice:
         # Voice components
         self.verse_manager = None
         self.recognizer = None
-        self.porcupine = None
         self.openai_client = None
         
         if self.enabled:
@@ -75,21 +72,7 @@ class ModernBibleClockVoice:
             self.recognizer.operation_timeout = self.voice_timeout
             logger.info("Speech recognizer initialized")
             
-            # Initialize Porcupine wake word detection
-            if self.porcupine_access_key and Path(self.keyword_path).exists():
-                try:
-                    import pvporcupine
-                    self.porcupine = pvporcupine.create(
-                        access_key=self.porcupine_access_key,
-                        keyword_paths=[self.keyword_path]
-                    )
-                    logger.info(f"Porcupine wake word detection initialized for '{self.wake_word}'")
-                except Exception as e:
-                    logger.warning(f"Porcupine initialization failed: {e}")
-                    self.porcupine = None
-            else:
-                logger.warning("No Porcupine access key or keyword file - wake word disabled")
-                self.porcupine = None
+            logger.info(f"Wake word detection ready for '{self.wake_word}'")
             
             # Test Piper TTS
             if not Path(self.piper_model_path).exists():
@@ -273,29 +256,23 @@ When asked to "explain this verse" or similar, refer to the current verse displa
             self.speak_with_amy("I'm sorry, I encountered an error processing your request.")
     
     def listen_for_wake_word(self):
-        """Listen for wake word using simple audio processing."""
-        if not self.porcupine:
-            return False
-            
+        """Listen for wake word using Google Speech Recognition."""
         try:
-            import subprocess
-            import tempfile
-            
             logger.info(f"👂 Listening for wake word '{self.wake_word}'...")
             
             while True:
-                # Record 2 seconds of audio and downsample with SoX
+                # Record 3 seconds of audio
+                import subprocess
+                import tempfile
+                
                 with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_file:
                     temp_path = temp_file.name
-                
-                with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as resampled_file:
-                    resampled_path = resampled_file.name
                 
                 # Record from USB microphone
                 result = subprocess.run([
                     'arecord', '-D', self.usb_mic_device,
-                    '-f', 'S16_LE', '-r', '48000', '-c', '1',
-                    '-d', '2', temp_path
+                    '-f', 'S16_LE', '-r', '16000', '-c', '1',
+                    '-d', '3', temp_path
                 ], capture_output=True, text=True)
                 
                 if result.returncode != 0:
@@ -303,84 +280,37 @@ When asked to "explain this verse" or similar, refer to the current verse displa
                     os.unlink(temp_path)
                     continue
                 
-                # Resample to 16kHz using SoX (more reliable than scipy on Pi)
-                result = subprocess.run([
-                    'sox', temp_path, '-r', '16000', resampled_path
-                ], capture_output=True, text=True)
-                
-                if result.returncode != 0:
-                    logger.warning("SoX not available, trying simple wake word detection")
-                    # Fall back to simple keyword detection in the audio
-                    if self._simple_wake_word_check(temp_path):
-                        os.unlink(temp_path)
-                        return True
-                else:
-                    # Use resampled audio with Porcupine
-                    if self._process_with_porcupine(resampled_path):
-                        os.unlink(temp_path)
-                        os.unlink(resampled_path)
-                        return True
-                    os.unlink(resampled_path)
+                # Use speech recognition to check for wake word
+                try:
+                    import speech_recognition as sr
+                    
+                    with sr.AudioFile(temp_path) as source:
+                        audio = self.recognizer.record(source)
+                    
+                    try:
+                        text = self.recognizer.recognize_google(audio).lower()
+                        logger.info(f"Heard: '{text}'")
+                        
+                        # Check for wake word variations
+                        wake_variations = ['bible clock', 'bible', 'clock']
+                        if any(word in text for word in wake_variations):
+                            logger.info(f"🎯 Wake word detected in: '{text}'")
+                            os.unlink(temp_path)
+                            return True
+                            
+                    except sr.UnknownValueError:
+                        pass  # No speech detected
+                    except sr.RequestError as e:
+                        logger.warning(f"Speech recognition error: {e}")
+                        
+                except Exception as e:
+                    logger.error(f"Wake word check error: {e}")
                 
                 os.unlink(temp_path)
                     
         except Exception as e:
             logger.error(f"Wake word detection error: {e}")
             return False
-    
-    def _simple_wake_word_check(self, audio_path):
-        """Simple wake word detection using speech recognition."""
-        try:
-            import speech_recognition as sr
-            
-            with sr.AudioFile(audio_path) as source:
-                audio = self.recognizer.record(source)
-            
-            # Try to recognize the audio
-            try:
-                text = self.recognizer.recognize_google(audio).lower()
-                logger.info(f"Heard: '{text}'")
-                
-                # Check for wake word variations
-                wake_variations = ['bible clock', 'bible', 'clock']
-                if any(word in text for word in wake_variations):
-                    logger.info(f"🎯 Wake word detected in: '{text}'")
-                    return True
-                    
-            except sr.UnknownValueError:
-                pass  # No speech detected
-            except sr.RequestError as e:
-                logger.warning(f"Speech recognition error: {e}")
-                
-        except Exception as e:
-            logger.error(f"Simple wake word check error: {e}")
-        
-        return False
-    
-    def _process_with_porcupine(self, audio_path):
-        """Process audio file with Porcupine."""
-        try:
-            import wave
-            
-            with wave.open(audio_path, 'rb') as wav_file:
-                frames = wav_file.readframes(-1)
-                import struct
-                audio_data = struct.unpack(f'{len(frames)//2}h', frames)
-            
-            # Process in chunks
-            chunk_size = self.porcupine.frame_length
-            for i in range(0, len(audio_data) - chunk_size, chunk_size):
-                chunk = audio_data[i:i + chunk_size]
-                keyword_index = self.porcupine.process(list(chunk))
-                
-                if keyword_index >= 0:
-                    logger.info(f"🎯 Porcupine detected wake word!")
-                    return True
-                    
-        except Exception as e:
-            logger.error(f"Porcupine processing error: {e}")
-        
-        return False
     
     def listen_for_command(self):
         """Listen for a single voice command using ALSA directly."""
@@ -445,15 +375,10 @@ def main():
         print("❌ Voice control disabled. Check configuration.")
         return
     
-    # Check wake word availability
-    if voice_system.porcupine:
-        print(f"🎯 Wake word: '{voice_system.wake_word}'")
-        voice_system.speak_with_amy(f"Bible Clock voice control ready. Say {voice_system.wake_word} to activate.")
-        wake_word_mode = True
-    else:
-        print("⚠️ Wake word disabled - using manual mode")
-        voice_system.speak_with_amy("Bible Clock voice control ready. Press enter to speak.")
-        wake_word_mode = False
+    # Wake word is always available with speech recognition
+    print(f"🎯 Wake word: '{voice_system.wake_word}'")
+    voice_system.speak_with_amy(f"Bible Clock voice control ready. Say {voice_system.wake_word} to activate.")
+    wake_word_mode = True
     
     print("\n🎯 VOICE COMMANDS:")
     print("• 'explain this verse' - Current verse explanation")  
@@ -465,25 +390,10 @@ def main():
     
     try:
         while True:
-            if wake_word_mode:
-                # Wait for wake word
-                if voice_system.listen_for_wake_word():
-                    voice_system.speak_with_amy("Yes?")
-                    # Listen for command after wake word
-                    command = voice_system.listen_for_command()
-                    if command:
-                        voice_system.process_voice_command(command)
-                else:
-                    # Wake word detection failed, wait a bit
-                    time.sleep(1)
-            else:
-                # Manual trigger mode
-                user_input = input("\nPress ENTER to speak (or 'quit'): ").strip().lower()
-                
-                if user_input in ['quit', 'q', 'exit']:
-                    break
-                
-                # Listen for command
+            # Wait for wake word
+            if voice_system.listen_for_wake_word():
+                voice_system.speak_with_amy("Yes?")
+                # Listen for command after wake word
                 command = voice_system.listen_for_command()
                 if command:
                     voice_system.process_voice_command(command)
