@@ -41,6 +41,8 @@ class ModernBibleClockVoice:
         self.openai_api_key = os.getenv('OPENAI_API_KEY', '')
         self.chatgpt_model = os.getenv('CHATGPT_MODEL', 'gpt-3.5-turbo')
         self.max_tokens = int(os.getenv('CHATGPT_MAX_TOKENS', '150'))
+        self.system_prompt = os.getenv('CHATGPT_SYSTEM_PROMPT', 
+            'You are a knowledgeable Bible study assistant. Provide accurate, thoughtful responses about the Bible, Christianity, and faith. Keep responses concise and meaningful, suitable for voice interaction.')
         
         # Wake word configuration
         self.wake_word = 'Bible Clock'
@@ -159,8 +161,8 @@ class ModernBibleClockVoice:
                 if verse_data:
                     current_verse = f"Current verse displayed: {verse_data.get('reference', '')} - {verse_data.get('text', '')}"
             
-            # Create Bible-focused prompt
-            system_prompt = f"""You are a knowledgeable Bible study assistant. Provide accurate, thoughtful responses about the Bible, Christianity, and faith. Keep responses concise and meaningful, suitable for voice interaction.
+            # Create system prompt with current verse context
+            full_system_prompt = f"""{self.system_prompt}
             
 {current_verse}
 
@@ -171,7 +173,7 @@ When asked to "explain this verse" or similar, refer to the current verse displa
                 response = self.openai_client.chat.completions.create(
                     model=self.chatgpt_model,
                     messages=[
-                        {"role": "system", "content": system_prompt},
+                        {"role": "system", "content": full_system_prompt},
                         {"role": "user", "content": question}
                     ],
                     max_tokens=self.max_tokens,
@@ -183,7 +185,7 @@ When asked to "explain this verse" or similar, refer to the current verse displa
                 response = self.openai_client.ChatCompletion.create(
                     model=self.chatgpt_model,
                     messages=[
-                        {"role": "system", "content": system_prompt},
+                        {"role": "system", "content": full_system_prompt},
                         {"role": "user", "content": question}
                     ],
                     max_tokens=self.max_tokens,
