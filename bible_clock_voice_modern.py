@@ -273,62 +273,114 @@ When asked to "explain this verse" or similar, refer to the current verse displa
             self.speak_with_amy("I'm sorry, I encountered an error processing your request.")
     
     def listen_for_wake_word(self):
-        """Listen for wake word using Porcupine with audio resampling."""
+        """Listen for wake word using simple audio processing."""
         if not self.porcupine:
             return False
             
         try:
             import subprocess
             import tempfile
-            import wave
-            import numpy as np
-            from scipy import signal
             
             logger.info(f"👂 Listening for wake word '{self.wake_word}'...")
             
             while True:
-                # Record 1 second of audio at USB microphone's native 48kHz
+                # Record 2 seconds of audio and downsample with SoX
                 with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_file:
                     temp_path = temp_file.name
                 
-                # Record from USB microphone at its native sample rate
+                with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as resampled_file:
+                    resampled_path = resampled_file.name
+                
+                # Record from USB microphone
                 result = subprocess.run([
                     'arecord', '-D', self.usb_mic_device,
                     '-f', 'S16_LE', '-r', '48000', '-c', '1',
-                    '-d', '1', temp_path
+                    '-d', '2', temp_path
                 ], capture_output=True, text=True)
                 
                 if result.returncode != 0:
                     logger.error(f"Recording failed: {result.stderr}")
                     os.unlink(temp_path)
-                    return False
+                    continue
                 
-                # Read the audio file
-                with wave.open(temp_path, 'rb') as wav_file:
-                    frames = wav_file.readframes(-1)
-                    audio_data = np.frombuffer(frames, dtype=np.int16)
+                # Resample to 16kHz using SoX (more reliable than scipy on Pi)
+                result = subprocess.run([
+                    'sox', temp_path, '-r', '16000', resampled_path
+                ], capture_output=True, text=True)
                 
-                # Resample from 48kHz to 16kHz for Porcupine
-                resampled = signal.resample(audio_data, len(audio_data) * 16000 // 48000)
-                resampled = resampled.astype(np.int16)
-                
-                # Process in chunks for Porcupine
-                chunk_size = self.porcupine.frame_length
-                for i in range(0, len(resampled) - chunk_size, chunk_size):
-                    chunk = resampled[i:i + chunk_size]
-                    keyword_index = self.porcupine.process(chunk.tolist())
-                    
-                    if keyword_index >= 0:
-                        logger.info(f"🎯 Wake word '{self.wake_word}' detected!")
+                if result.returncode != 0:
+                    logger.warning("SoX not available, trying simple wake word detection")
+                    # Fall back to simple keyword detection in the audio
+                    if self._simple_wake_word_check(temp_path):
                         os.unlink(temp_path)
                         return True
+                else:
+                    # Use resampled audio with Porcupine
+                    if self._process_with_porcupine(resampled_path):
+                        os.unlink(temp_path)
+                        os.unlink(resampled_path)
+                        return True
+                    os.unlink(resampled_path)
                 
-                # Clean up
                 os.unlink(temp_path)
                     
         except Exception as e:
             logger.error(f"Wake word detection error: {e}")
             return False
+    
+    def _simple_wake_word_check(self, audio_path):
+        """Simple wake word detection using speech recognition."""
+        try:
+            import speech_recognition as sr
+            
+            with sr.AudioFile(audio_path) as source:
+                audio = self.recognizer.record(source)
+            
+            # Try to recognize the audio
+            try:
+                text = self.recognizer.recognize_google(audio).lower()
+                logger.info(f"Heard: '{text}'")
+                
+                # Check for wake word variations
+                wake_variations = ['bible clock', 'bible', 'clock']
+                if any(word in text for word in wake_variations):
+                    logger.info(f"🎯 Wake word detected in: '{text}'")
+                    return True
+                    
+            except sr.UnknownValueError:
+                pass  # No speech detected
+            except sr.RequestError as e:
+                logger.warning(f"Speech recognition error: {e}")
+                
+        except Exception as e:
+            logger.error(f"Simple wake word check error: {e}")
+        
+        return False
+    
+    def _process_with_porcupine(self, audio_path):
+        """Process audio file with Porcupine."""
+        try:
+            import wave
+            
+            with wave.open(audio_path, 'rb') as wav_file:
+                frames = wav_file.readframes(-1)
+                import struct
+                audio_data = struct.unpack(f'{len(frames)//2}h', frames)
+            
+            # Process in chunks
+            chunk_size = self.porcupine.frame_length
+            for i in range(0, len(audio_data) - chunk_size, chunk_size):
+                chunk = audio_data[i:i + chunk_size]
+                keyword_index = self.porcupine.process(list(chunk))
+                
+                if keyword_index >= 0:
+                    logger.info(f"🎯 Porcupine detected wake word!")
+                    return True
+                    
+        except Exception as e:
+            logger.error(f"Porcupine processing error: {e}")
+        
+        return False
     
     def listen_for_command(self):
         """Listen for a single voice command using ALSA directly."""
