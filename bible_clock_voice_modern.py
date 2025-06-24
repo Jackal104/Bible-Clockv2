@@ -273,46 +273,61 @@ When asked to "explain this verse" or similar, refer to the current verse displa
             self.speak_with_amy("I'm sorry, I encountered an error processing your request.")
     
     def listen_for_wake_word(self):
-        """Listen for wake word using Porcupine."""
+        """Listen for wake word using Porcupine with audio resampling."""
         if not self.porcupine:
             return False
             
         try:
-            import pyaudio
-            import struct
-            
-            # Audio configuration for Porcupine (16kHz, 16-bit, mono)
-            audio = pyaudio.PyAudio()
-            
-            # Use ALSA directly for better USB microphone support
-            mic_stream = audio.open(
-                format=pyaudio.paInt16,
-                channels=1,
-                rate=self.porcupine.sample_rate,
-                input=True,
-                frames_per_buffer=self.porcupine.frame_length,
-                input_device_index=None,  # Let ALSA handle device selection
-            )
+            import subprocess
+            import tempfile
+            import wave
+            import numpy as np
+            from scipy import signal
             
             logger.info(f"👂 Listening for wake word '{self.wake_word}'...")
             
             while True:
-                pcm = mic_stream.read(self.porcupine.frame_length, exception_on_overflow=False)
-                pcm = struct.unpack_from("h" * self.porcupine.frame_length, pcm)
+                # Record 1 second of audio at USB microphone's native 48kHz
+                with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_file:
+                    temp_path = temp_file.name
                 
-                keyword_index = self.porcupine.process(pcm)
-                if keyword_index >= 0:
-                    logger.info(f"🎯 Wake word '{self.wake_word}' detected!")
-                    mic_stream.close()
-                    audio.terminate()
-                    return True
+                # Record from USB microphone at its native sample rate
+                result = subprocess.run([
+                    'arecord', '-D', self.usb_mic_device,
+                    '-f', 'S16_LE', '-r', '48000', '-c', '1',
+                    '-d', '1', temp_path
+                ], capture_output=True, text=True)
+                
+                if result.returncode != 0:
+                    logger.error(f"Recording failed: {result.stderr}")
+                    os.unlink(temp_path)
+                    return False
+                
+                # Read the audio file
+                with wave.open(temp_path, 'rb') as wav_file:
+                    frames = wav_file.readframes(-1)
+                    audio_data = np.frombuffer(frames, dtype=np.int16)
+                
+                # Resample from 48kHz to 16kHz for Porcupine
+                resampled = signal.resample(audio_data, len(audio_data) * 16000 // 48000)
+                resampled = resampled.astype(np.int16)
+                
+                # Process in chunks for Porcupine
+                chunk_size = self.porcupine.frame_length
+                for i in range(0, len(resampled) - chunk_size, chunk_size):
+                    chunk = resampled[i:i + chunk_size]
+                    keyword_index = self.porcupine.process(chunk.tolist())
+                    
+                    if keyword_index >= 0:
+                        logger.info(f"🎯 Wake word '{self.wake_word}' detected!")
+                        os.unlink(temp_path)
+                        return True
+                
+                # Clean up
+                os.unlink(temp_path)
                     
         except Exception as e:
             logger.error(f"Wake word detection error: {e}")
-            if 'mic_stream' in locals():
-                mic_stream.close()
-            if 'audio' in locals():
-                audio.terminate()
             return False
     
     def listen_for_command(self):
