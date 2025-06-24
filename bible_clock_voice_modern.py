@@ -268,11 +268,11 @@ When asked to "explain this verse" or similar, refer to the current verse displa
                 with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_file:
                     temp_path = temp_file.name
                 
-                # Record from USB microphone
+                # Record from USB microphone - shorter for faster response
                 result = subprocess.run([
                     'arecord', '-D', self.usb_mic_device,
                     '-f', 'S16_LE', '-r', '16000', '-c', '1',
-                    '-d', '3', temp_path
+                    '-d', '1.5', temp_path
                 ], capture_output=True, text=True)
                 
                 if result.returncode != 0:
