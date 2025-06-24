@@ -14,6 +14,9 @@ import tempfile
 from pathlib import Path
 from dotenv import load_dotenv
 
+# Suppress ALSA error messages
+os.environ['ALSA_QUIET'] = '1'
+
 # Load environment variables
 load_dotenv()
 
@@ -95,10 +98,12 @@ class ModernBibleClockVoice:
         try:
             # Try modern OpenAI API (1.0+)
             from openai import OpenAI
+            # Remove any problematic proxy arguments
             self.openai_client = OpenAI(api_key=self.openai_api_key)
             self.api_version = "modern"
             logger.info("Using modern OpenAI API (1.0+)")
-        except ImportError:
+        except Exception as e:
+            logger.warning(f"Modern OpenAI API failed: {e}")
             try:
                 # Fallback to legacy API
                 import openai
@@ -106,8 +111,8 @@ class ModernBibleClockVoice:
                 self.openai_client = openai
                 self.api_version = "legacy"
                 logger.info("Using legacy OpenAI API (0.28)")
-            except Exception as e:
-                logger.error(f"Failed to initialize OpenAI: {e}")
+            except Exception as e2:
+                logger.error(f"Failed to initialize OpenAI: {e2}")
                 self.openai_client = None
     
     def speak_with_amy(self, text):
