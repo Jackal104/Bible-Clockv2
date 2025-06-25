@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 
 # Suppress ALSA error messages
 os.environ['ALSA_QUIET'] = '1'
-os.environ['ALSA_CARD'] = '1'  # Force ALSA to use card 1 (USB)
+os.environ['ALSA_CARD'] = os.getenv('ALSA_CARD', '1')  # Configurable ALSA card (default USB)
 os.environ['PULSE_RUNTIME_PATH'] = '/dev/null'  # Disable PulseAudio
 os.environ['JACK_NO_START_SERVER'] = '1'  # Disable JACK
 
@@ -145,15 +145,22 @@ class ModernBibleClockVoice:
                 logger.error(f"Custom Bible Clock wake word file not found: {bible_clock_ppn}")
                 return False
             
-            if not self.porcupine_access_key:
-                logger.error("PICOVOICE_ACCESS_KEY not found in environment variables")
+            # Explicit access key validation
+            access_key = os.getenv("PICOVOICE_ACCESS_KEY")
+            if not access_key:
+                logger.error("Missing PICOVOICE_ACCESS_KEY in .env")
                 logger.info("Please add PICOVOICE_ACCESS_KEY to your .env file")
                 logger.info("Get your free access key from: https://console.picovoice.ai/")
                 return False
             
+            if len(access_key) < 10:  # Basic sanity check
+                logger.error("PICOVOICE_ACCESS_KEY appears to be invalid (too short)")
+                logger.info("Access key should start with something like 'picovoice-...'")
+                return False
+            
             # Initialize Porcupine with custom "Bible Clock" wake word
             self.porcupine = pvporcupine.create(
-                access_key=self.porcupine_access_key,    # Required access key
+                access_key=access_key,                   # Validated access key
                 keyword_paths=[str(bible_clock_ppn)],    # Your custom Bible Clock wake word
                 sensitivities=[0.5]                      # Medium sensitivity
             )
@@ -179,9 +186,12 @@ class ModernBibleClockVoice:
             self.porcupine = None
             return False
     
+    @contextlib.contextmanager
     def _suppress_alsa_messages(self):
-        """Context manager to suppress ALSA error messages."""
-        return contextlib.redirect_stderr(open(os.devnull, 'w'))
+        """Proper context manager to suppress ALSA error messages without file handle leaks."""
+        with open(os.devnull, 'w') as fnull:
+            with contextlib.redirect_stderr(fnull):
+                yield
     
     def _find_usb_mic_device(self):
         """Find USB microphone device index in PyAudio with error suppression."""
@@ -212,7 +222,7 @@ class ModernBibleClockVoice:
                     try:
                         device_info = self.pyaudio.get_device_info_by_index(i)
                         if device_info.get('maxInputChannels', 0) > 0:
-                            logger.info(f"Using input device: {device_info['name']} (index {i})")
+                            logger.info(f"No USB mic found. Using fallback input: {device_info['name']} (index {i})")
                             return i
                     except Exception:
                         continue
