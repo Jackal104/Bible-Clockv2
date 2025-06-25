@@ -13,6 +13,9 @@ import subprocess
 import tempfile
 from pathlib import Path
 from dotenv import load_dotenv
+import numpy as np
+import threading
+import queue
 
 # Suppress ALSA error messages
 os.environ['ALSA_QUIET'] = '1'
@@ -169,6 +172,10 @@ class ModernBibleClockVoice:
             with self._suppress_alsa_messages():
                 self.pyaudio = pyaudio.PyAudio()
             
+            # Get mic's native sample rate for optimal resampling
+            self.mic_sample_rate = self._get_mic_sample_rate()
+            logger.info(f"USB mic native sample rate: {self.mic_sample_rate}Hz")
+            
             # Find USB microphone device index
             self.usb_mic_index = self._find_usb_mic_device()
             if self.usb_mic_index is None:
@@ -233,6 +240,58 @@ class ModernBibleClockVoice:
             logger.error(f"Error finding microphone: {e}")
             return None
     
+    def _get_mic_sample_rate(self):
+        """Detect the native sample rate of the USB microphone."""
+        try:
+            # Try common sample rates, starting with highest for best quality
+            test_rates = [48000, 44100, 32000, 22050, 16000, 8000]
+            
+            for rate in test_rates:
+                try:
+                    with self._suppress_alsa_messages():
+                        test_stream = self.pyaudio.open(
+                            format=self.pyaudio.get_format_from_width(2),  # 16-bit
+                            channels=1,
+                            rate=rate,
+                            input=True,
+                            input_device_index=self.usb_mic_index,
+                            frames_per_buffer=1024
+                        )
+                        test_stream.close()
+                        logger.info(f"Mic supports sample rate: {rate}Hz")
+                        return rate
+                except Exception:
+                    continue
+            
+            # Default fallback
+            logger.warning("Could not detect mic sample rate, using 48000Hz")
+            return 48000
+            
+        except Exception as e:
+            logger.error(f"Error detecting mic sample rate: {e}")
+            return 48000
+    
+    def _resample_audio_chunk(self, audio_chunk, source_rate, target_rate):
+        """Fast in-memory audio resampling using numpy interpolation."""
+        try:
+            if source_rate == target_rate:
+                return audio_chunk
+            
+            # Simple linear interpolation for real-time performance
+            ratio = target_rate / source_rate
+            original_length = len(audio_chunk)
+            new_length = int(original_length * ratio)
+            
+            # Use numpy for fast resampling
+            indices = np.linspace(0, original_length - 1, new_length)
+            resampled = np.interp(indices, np.arange(original_length), audio_chunk)
+            
+            return resampled.astype(np.int16)
+            
+        except Exception as e:
+            logger.error(f"Resampling error: {e}")
+            return audio_chunk
+    
     def speak_with_amy(self, text):
         """Convert text to speech using Piper Amy voice optimized for Pi 3B+."""
         try:
@@ -273,7 +332,7 @@ class ModernBibleClockVoice:
             logger.error(f"Speech synthesis error: {e}")
     
     def query_chatgpt(self, question):
-        """Send question to ChatGPT using version-compatible API."""
+        """Send question to ChatGPT using streaming API for real-time responses."""
         try:
             if not self.openai_client:
                 return "I need an OpenAI API key to answer questions. Please configure it in your environment."
@@ -292,20 +351,46 @@ class ModernBibleClockVoice:
 
 When asked to "explain this verse" or similar, refer to the current verse displayed above."""
             
-            # Use appropriate API version
+            # Use streaming for real-time response
             if self.api_version == "modern":
-                response = self.openai_client.chat.completions.create(
+                response_stream = self.openai_client.chat.completions.create(
                     model=self.chatgpt_model,
                     messages=[
                         {"role": "system", "content": full_system_prompt},
                         {"role": "user", "content": question}
                     ],
                     max_tokens=self.max_tokens,
-                    temperature=0.7
+                    temperature=0.7,
+                    stream=True  # Enable streaming for real-time response
                 )
-                answer = response.choices[0].message.content.strip()
+                
+                # Collect response chunks for real-time TTS
+                full_response = ""
+                sentence_buffer = ""
+                
+                for chunk in response_stream:
+                    if chunk.choices[0].delta.content:
+                        content = chunk.choices[0].delta.content
+                        full_response += content
+                        sentence_buffer += content
+                        
+                        # Speak complete sentences as they arrive
+                        if any(punct in sentence_buffer for punct in ['.', '!', '?', '\n']):
+                            sentence = sentence_buffer.strip()
+                            if sentence:
+                                # Speak this sentence immediately (non-blocking)
+                                threading.Thread(target=self.speak_with_amy, args=(sentence,), daemon=True).start()
+                            sentence_buffer = ""
+                
+                # Speak any remaining text
+                if sentence_buffer.strip():
+                    threading.Thread(target=self.speak_with_amy, args=(sentence_buffer.strip(),), daemon=True).start()
+                
+                logger.info(f"ChatGPT streaming response: {full_response[:100]}...")
+                return full_response
+                
             else:
-                # Legacy API
+                # Legacy API fallback (non-streaming)
                 response = self.openai_client.ChatCompletion.create(
                     model=self.chatgpt_model,
                     messages=[
@@ -316,9 +401,8 @@ When asked to "explain this verse" or similar, refer to the current verse displa
                     temperature=0.7
                 )
                 answer = response.choices[0].message.content.strip()
-            
-            logger.info(f"ChatGPT response: {answer[:100]}...")
-            return answer
+                logger.info(f"ChatGPT response: {answer[:100]}...")
+                return answer
             
         except Exception as e:
             logger.error(f"ChatGPT query failed: {e}")
@@ -370,12 +454,9 @@ When asked to "explain this verse" or similar, refer to the current verse displa
                     response = "Verse manager not available."
                 
             else:
-                # Send to ChatGPT for Bible questions
+                # Send to ChatGPT for Bible questions (streaming will handle TTS automatically)
                 response = self.query_chatgpt(command_text)
-            
-            # Speak the response
-            if response:
-                self.speak_with_amy(response)
+                # Note: streaming ChatGPT already handles TTS, no need to speak again
                 
         except Exception as e:
             logger.error(f"Command processing error: {e}")
@@ -389,41 +470,56 @@ When asked to "explain this verse" or similar, refer to the current verse displa
             return self._listen_for_wake_word_google()
     
     def _listen_for_wake_word_porcupine(self):
-        """Listen for wake word using Porcupine with PyAudio stream."""
+        """Listen for wake word using Porcupine with real-time resampling."""
         try:
             import pyaudio
             
-            logger.info("👂 Listening for wake word 'Bible Clock' (Porcupine)...")
+            logger.info("👂 Listening for wake word 'Bible Clock' (Porcupine with resampling)...")
             
-            # Create audio stream with Porcupine's exact requirements
+            # Calculate frame sizes for resampling
+            mic_frame_size = int(self.porcupine.frame_length * self.mic_sample_rate / self.porcupine.sample_rate)
+            
+            # Create audio stream at mic's native sample rate
             with self._suppress_alsa_messages():
                 audio_stream = self.pyaudio.open(
-                    rate=self.porcupine.sample_rate,  # 16000 Hz
+                    rate=self.mic_sample_rate,  # Use mic's native rate
                     channels=1,
                     format=pyaudio.paInt16,
                     input=True,
                     input_device_index=self.usb_mic_index,
-                    frames_per_buffer=self.porcupine.frame_length
+                    frames_per_buffer=mic_frame_size
                 )
+            
+            logger.info(f"Audio stream: {self.mic_sample_rate}Hz → {self.porcupine.sample_rate}Hz")
             
             while True:
                 try:
-                    # Read audio frame - exactly what Porcupine expects
-                    pcm = audio_stream.read(self.porcupine.frame_length)
-                    pcm = [int.from_bytes(pcm[i:i+2], byteorder='little', signed=True) 
-                           for i in range(0, len(pcm), 2)]
+                    # Read audio at mic's native rate
+                    pcm_bytes = audio_stream.read(mic_frame_size, exception_on_overflow=False)
                     
-                    # Process with Porcupine
-                    keyword_index = self.porcupine.process(pcm)
+                    # Convert to numpy array
+                    pcm_array = np.frombuffer(pcm_bytes, dtype=np.int16)
                     
-                    if keyword_index >= 0:
-                        logger.info("🎯 Wake word 'Bible Clock' detected by Porcupine!")
-                        audio_stream.stop_stream()
-                        audio_stream.close()
-                        return True
+                    # Resample to Porcupine's required rate (16kHz)
+                    resampled = self._resample_audio_chunk(
+                        pcm_array, self.mic_sample_rate, self.porcupine.sample_rate
+                    )
+                    
+                    # Ensure we have exactly the right frame size
+                    if len(resampled) >= self.porcupine.frame_length:
+                        frame = resampled[:self.porcupine.frame_length]
+                        
+                        # Process with Porcupine
+                        keyword_index = self.porcupine.process(frame.tolist())
+                        
+                        if keyword_index >= 0:
+                            logger.info("🎯 Wake word 'Bible Clock' detected by Porcupine!")
+                            audio_stream.stop_stream()
+                            audio_stream.close()
+                            return True
                         
                 except Exception as e:
-                    logger.error(f"Porcupine processing error: {e}")
+                    logger.warning(f"Porcupine processing error: {e}")
                     continue
                 
         except Exception as e:
