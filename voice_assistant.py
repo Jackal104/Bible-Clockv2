@@ -94,6 +94,9 @@ class VoiceAssistant:
         self.interrupt_detection_active = False
         self.interrupt_thread = None
         
+        # Audio device lock to prevent simultaneous access
+        self.audio_lock = threading.Lock()
+        
         if self.enabled:
             self._initialize_components()
     
@@ -760,14 +763,14 @@ class VoiceAssistant:
                 # Update visual state
                 self._update_visual_state("speaking", f"Speaking: {tts_text[:30]}...")
                 
-                # Start interrupt detection during TTS
-                self._start_interrupt_detection()
+                # Temporarily disable interrupt detection to avoid mic conflicts
+                # TODO: Implement proper audio device sharing in future version
+                # self._start_interrupt_detection()
                 
                 # Speak the text (this will block until complete)
                 self._speak_with_amy_direct(tts_text)
                 
-                # Stop interrupt detection
-                self._stop_interrupt_detection()
+                # self._stop_interrupt_detection()
                 
                 # Mark task as done
                 self.tts_queue.task_done()
