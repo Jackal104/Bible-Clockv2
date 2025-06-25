@@ -18,6 +18,9 @@ soundfile==0.12.1
 pydub==0.25.1
 scipy==1.11.4  # Required for audio resampling in Porcupine wake word detection
 
+# NOTE: Also requires ffmpeg system package for OpenAI TTS playback:
+# sudo apt install ffmpeg
+
 # Web interface
 flask==3.0.0
 flask-cors==4.0.0

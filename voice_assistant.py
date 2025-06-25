@@ -848,6 +848,49 @@ class VoiceAssistant:
         """Queue text for TTS to prevent overlapping speech."""
         self.queue_tts(text, priority=priority)
     
+    def _play_openai_tts_stream(self, text):
+        """Generate speech using OpenAI TTS API and play it immediately."""
+        try:
+            logger.info("🔊 Requesting OpenAI TTS...")
+            
+            # Record first speech time for metrics
+            if self.metrics['first_speech_time'] is None:
+                self.metrics['first_speech_time'] = time_module.time()
+            
+            # Update visual state
+            self._update_visual_state("speaking", f"Speaking via OpenAI TTS...")
+            
+            # Generate speech using OpenAI TTS API
+            response = self.openai_client.audio.speech.create(
+                model="tts-1",
+                voice="nova",  # High-quality ChatGPT-like voice
+                input=text
+            )
+            
+            # Save to temporary file
+            with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmp:
+                tmp.write(response.content)
+                tmp_path = tmp.name
+            
+            logger.info("🔊 Playing OpenAI speech...")
+            
+            # Play the MP3 through USB speakers
+            subprocess.run([
+                "ffplay", "-nodisp", "-autoexit", 
+                "-af", f"aformat=sample_rates=48000",  # Match USB speaker rate
+                tmp_path
+            ], capture_output=True)
+            
+            # Clean up
+            os.unlink(tmp_path)
+            logger.info("✅ OpenAI TTS playback complete")
+            
+        except Exception as e:
+            logger.error(f"OpenAI TTS playback failed: {e}")
+            # Fallback to Piper if OpenAI TTS fails
+            logger.info("Falling back to Piper TTS...")
+            self.queue_tts(text)
+    
     def query_chatgpt(self, question):
         """Send question to ChatGPT using streaming API for real-time responses."""
         try:
@@ -886,31 +929,21 @@ When asked to "explain this verse" or similar, refer to the current verse displa
                     stream=True  # Enable streaming for real-time response
                 )
                 
-                # Collect response chunks for real-time TTS
+                # Collect full response for OpenAI TTS
                 full_response = ""
-                sentence_buffer = ""
                 
                 for chunk in response_stream:
                     if chunk.choices[0].delta.content:
                         content = chunk.choices[0].delta.content
                         full_response += content
-                        sentence_buffer += content
                         
                         # Record first response time
                         if self.metrics['gpt_first_response_time'] is None:
                             self.metrics['gpt_first_response_time'] = time_module.time()
-                        
-                        # Queue complete sentences as they arrive
-                        if any(punct in sentence_buffer for punct in ['.', '!', '?', '\n']):
-                            sentence = sentence_buffer.strip()
-                            if sentence:
-                                # Queue this sentence (will be spoken in order)
-                                self.queue_tts(sentence)
-                            sentence_buffer = ""
                 
-                # Queue any remaining text
-                if sentence_buffer.strip():
-                    self.queue_tts(sentence_buffer.strip())
+                # Use OpenAI TTS for the complete response (much faster!)
+                if full_response.strip():
+                    self._play_openai_tts_stream(full_response.strip())
                 
                 logger.info(f"ChatGPT streaming response: {full_response[:100]}...")
                 return full_response
@@ -927,6 +960,15 @@ When asked to "explain this verse" or similar, refer to the current verse displa
                     temperature=0.7
                 )
                 answer = response.choices[0].message.content.strip()
+                
+                # Record first response time for legacy API
+                if self.metrics['gpt_first_response_time'] is None:
+                    self.metrics['gpt_first_response_time'] = time_module.time()
+                
+                # Use OpenAI TTS for legacy API response too
+                if answer.strip():
+                    self._play_openai_tts_stream(answer.strip())
+                
                 logger.info(f"ChatGPT response: {answer[:100]}...")
                 return answer
             
