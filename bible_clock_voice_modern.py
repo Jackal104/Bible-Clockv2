@@ -131,15 +131,15 @@ class ModernBibleClockVoice:
             with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_file:
                 temp_path = temp_file.name
             
-            # Generate audio with Piper - Pi 3B+ optimized
+            # Generate audio with Piper - Pi 3B+ optimized (limit to 2 cores)
             result = subprocess.run([
+                'taskset', '-c', '0,1',  # Limit to first 2 CPU cores
                 'piper',
                 '--model', self.piper_model_path,
                 '--output_file', temp_path,
                 '--length_scale', '0.85',  # Speak 15% faster (more natural)
                 '--noise_scale', '0.667',  # Default noise for quality
-                '--sentence_silence', '0.2',  # Slightly reduced pauses
-                '--num_threads', '2'  # Limit CPU threads for Pi 3B+
+                '--sentence_silence', '0.2'  # Slightly reduced pauses
             ], input=text, text=True, capture_output=True)
             
             if result.returncode == 0:
