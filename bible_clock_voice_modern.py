@@ -16,6 +16,13 @@ from dotenv import load_dotenv
 
 # Suppress ALSA error messages
 os.environ['ALSA_QUIET'] = '1'
+os.environ['ALSA_CARD'] = '1'  # Force ALSA to use card 1 (USB)
+os.environ['PULSE_RUNTIME_PATH'] = '/dev/null'  # Disable PulseAudio
+os.environ['JACK_NO_START_SERVER'] = '1'  # Disable JACK
+
+# Redirect stderr to suppress ALSA warnings during PyAudio init
+import contextlib
+import sys
 
 # Load environment variables
 load_dotenv()
@@ -151,13 +158,14 @@ class ModernBibleClockVoice:
                 sensitivities=[0.5]                      # Medium sensitivity
             )
             
-            # Initialize PyAudio for proper audio stream handling
-            self.pyaudio = pyaudio.PyAudio()
+            # Initialize PyAudio with error suppression
+            with self._suppress_alsa_messages():
+                self.pyaudio = pyaudio.PyAudio()
             
             # Find USB microphone device index
             self.usb_mic_index = self._find_usb_mic_device()
             if self.usb_mic_index is None:
-                logger.warning("USB microphone not found, using default")
+                logger.warning("No microphone found, using default device 0")
                 self.usb_mic_index = 0
             
             logger.info(f"Porcupine initialized - Sample rate: {self.porcupine.sample_rate}Hz")
@@ -171,25 +179,48 @@ class ModernBibleClockVoice:
             self.porcupine = None
             return False
     
+    def _suppress_alsa_messages(self):
+        """Context manager to suppress ALSA error messages."""
+        return contextlib.redirect_stderr(open(os.devnull, 'w'))
+    
     def _find_usb_mic_device(self):
-        """Find USB microphone device index in PyAudio."""
+        """Find USB microphone device index in PyAudio with error suppression."""
         try:
             import pyaudio
             
-            for i in range(self.pyaudio.get_device_count()):
-                device_info = self.pyaudio.get_device_info_by_index(i)
-                device_name = device_info.get('name', '').lower()
+            # Suppress ALSA errors during device enumeration
+            with self._suppress_alsa_messages():
+                device_count = self.pyaudio.get_device_count()
                 
-                # Look for USB audio devices
-                if any(keyword in device_name for keyword in ['usb', 'fifine', 'pnp', 'microphone']):
-                    if device_info.get('maxInputChannels', 0) > 0:
-                        logger.info(f"Found USB mic: {device_info['name']} (index {i})")
-                        return i
+                for i in range(device_count):
+                    try:
+                        device_info = self.pyaudio.get_device_info_by_index(i)
+                        device_name = device_info.get('name', '').lower()
+                        
+                        # Look for USB audio devices
+                        if any(keyword in device_name for keyword in ['usb', 'fifine', 'pnp', 'microphone']):
+                            if device_info.get('maxInputChannels', 0) > 0:
+                                logger.info(f"Found USB mic: {device_info['name']} (index {i})")
+                                return i
+                    except Exception:
+                        continue  # Skip problematic devices
+            
+            # If no USB mic found, try to find any input device
+            logger.warning("No USB microphone found, looking for any input device...")
+            with self._suppress_alsa_messages():
+                for i in range(device_count):
+                    try:
+                        device_info = self.pyaudio.get_device_info_by_index(i)
+                        if device_info.get('maxInputChannels', 0) > 0:
+                            logger.info(f"Using input device: {device_info['name']} (index {i})")
+                            return i
+                    except Exception:
+                        continue
             
             return None
             
         except Exception as e:
-            logger.error(f"Error finding USB mic: {e}")
+            logger.error(f"Error finding microphone: {e}")
             return None
     
     def speak_with_amy(self, text):
@@ -355,14 +386,15 @@ When asked to "explain this verse" or similar, refer to the current verse displa
             logger.info("👂 Listening for wake word 'Bible Clock' (Porcupine)...")
             
             # Create audio stream with Porcupine's exact requirements
-            audio_stream = self.pyaudio.open(
-                rate=self.porcupine.sample_rate,  # 16000 Hz
-                channels=1,
-                format=pyaudio.paInt16,
-                input=True,
-                input_device_index=self.usb_mic_index,
-                frames_per_buffer=self.porcupine.frame_length
-            )
+            with self._suppress_alsa_messages():
+                audio_stream = self.pyaudio.open(
+                    rate=self.porcupine.sample_rate,  # 16000 Hz
+                    channels=1,
+                    format=pyaudio.paInt16,
+                    input=True,
+                    input_device_index=self.usb_mic_index,
+                    frames_per_buffer=self.porcupine.frame_length
+                )
             
             while True:
                 try:
