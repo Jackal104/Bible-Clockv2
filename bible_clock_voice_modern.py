@@ -119,22 +119,27 @@ class ModernBibleClockVoice:
                 self.openai_client = None
     
     def speak_with_amy(self, text):
-        """Convert text to speech using Piper Amy voice with optimized speed."""
+        """Convert text to speech using Piper Amy voice optimized for Pi 3B+."""
         try:
             logger.info(f"Speaking: {text[:50]}...")
+            
+            # Set lower process priority to prevent system lockup on Pi 3B+
+            current_priority = os.nice(0)
+            os.nice(5)
             
             # Create temporary audio file
             with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_file:
                 temp_path = temp_file.name
             
-            # Generate audio with Piper - maximum speed optimization
+            # Generate audio with Piper - Pi 3B+ optimized
             result = subprocess.run([
                 'piper',
                 '--model', self.piper_model_path,
                 '--output_file', temp_path,
-                '--length_scale', '0.6',  # Speak 40% faster
-                '--noise_scale', '0.1',   # Minimal noise for faster processing
-                '--sentence_silence', '0.1'  # Reduce pauses between sentences
+                '--length_scale', '0.85',  # Speak 15% faster (more natural)
+                '--noise_scale', '0.667',  # Default noise for quality
+                '--sentence_silence', '0.2',  # Slightly reduced pauses
+                '--num_threads', '2'  # Limit CPU threads for Pi 3B+
             ], input=text, text=True, capture_output=True)
             
             if result.returncode == 0:
