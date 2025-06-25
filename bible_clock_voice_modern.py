@@ -69,6 +69,11 @@ class ModernBibleClockVoice:
         self.openai_client = None
         self.porcupine = None
         
+        # TTS queue for preventing overlapping speech
+        self.tts_queue = queue.Queue()
+        self.tts_thread = None
+        self.tts_thread_running = False
+        
         if self.enabled:
             self._initialize_components()
     
@@ -185,6 +190,10 @@ class ModernBibleClockVoice:
             logger.info(f"Porcupine initialized - Sample rate: {self.porcupine.sample_rate}Hz")
             logger.info(f"Using USB mic device index: {self.usb_mic_index}")
             logger.info("Using custom 'Bible Clock' wake word model")
+            
+            # Start TTS worker thread
+            self._start_tts_worker()
+            
             return True
             
         except Exception as e:
@@ -292,8 +301,52 @@ class ModernBibleClockVoice:
             logger.error(f"Resampling error: {e}")
             return audio_chunk
     
-    def speak_with_amy(self, text):
-        """Convert text to speech using Piper Amy voice optimized for Pi 3B+."""
+    def _start_tts_worker(self):
+        """Start the TTS worker thread to prevent overlapping speech."""
+        self.tts_thread_running = True
+        self.tts_thread = threading.Thread(target=self._tts_worker, daemon=True)
+        self.tts_thread.start()
+        logger.info("TTS worker thread started")
+    
+    def _tts_worker(self):
+        """Worker thread that processes TTS queue to prevent overlapping speech."""
+        while self.tts_thread_running:
+            try:
+                # Get next TTS task from queue (blocks until available)
+                tts_text = self.tts_queue.get(timeout=1.0)
+                if tts_text is None:  # Shutdown signal
+                    break
+                
+                # Speak the text (this will block until complete)
+                self._speak_with_amy_direct(tts_text)
+                
+                # Mark task as done
+                self.tts_queue.task_done()
+                
+            except queue.Empty:
+                continue  # Timeout, check if still running
+            except Exception as e:
+                logger.error(f"TTS worker error: {e}")
+    
+    def queue_tts(self, text, priority=False):
+        """Queue text for TTS to prevent overlapping speech."""
+        try:
+            if priority:
+                # Clear queue and add this as priority
+                while not self.tts_queue.empty():
+                    try:
+                        self.tts_queue.get_nowait()
+                    except queue.Empty:
+                        break
+            
+            self.tts_queue.put(text)
+            logger.debug(f"Queued TTS: {text[:50]}...")
+            
+        except Exception as e:
+            logger.error(f"Error queuing TTS: {e}")
+    
+    def _speak_with_amy_direct(self, text):
+        """Direct TTS without queueing (used by worker thread)."""
         try:
             logger.info(f"Speaking: {text[:50]}...")
             
@@ -305,7 +358,7 @@ class ModernBibleClockVoice:
             with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_file:
                 temp_path = temp_file.name
             
-            # Generate audio with Piper - Pi 3B+ optimized (limit to 2 cores)
+            # Generate audio with Piper - balanced speed and CPU optimization
             result = subprocess.run([
                 'taskset', '-c', '0,1',  # Limit to first 2 CPU cores
                 'piper',
@@ -330,6 +383,10 @@ class ModernBibleClockVoice:
             
         except Exception as e:
             logger.error(f"Speech synthesis error: {e}")
+    
+    def speak_with_amy(self, text, priority=False):
+        """Queue text for TTS to prevent overlapping speech."""
+        self.queue_tts(text, priority=priority)
     
     def query_chatgpt(self, question):
         """Send question to ChatGPT using streaming API for real-time responses."""
@@ -374,17 +431,17 @@ When asked to "explain this verse" or similar, refer to the current verse displa
                         full_response += content
                         sentence_buffer += content
                         
-                        # Speak complete sentences as they arrive
+                        # Queue complete sentences as they arrive
                         if any(punct in sentence_buffer for punct in ['.', '!', '?', '\n']):
                             sentence = sentence_buffer.strip()
                             if sentence:
-                                # Speak this sentence immediately (non-blocking)
-                                threading.Thread(target=self.speak_with_amy, args=(sentence,), daemon=True).start()
+                                # Queue this sentence (will be spoken in order)
+                                self.queue_tts(sentence)
                             sentence_buffer = ""
                 
-                # Speak any remaining text
+                # Queue any remaining text
                 if sentence_buffer.strip():
-                    threading.Thread(target=self.speak_with_amy, args=(sentence_buffer.strip(),), daemon=True).start()
+                    self.queue_tts(sentence_buffer.strip())
                 
                 logger.info(f"ChatGPT streaming response: {full_response[:100]}...")
                 return full_response
@@ -576,30 +633,92 @@ When asked to "explain this verse" or similar, refer to the current verse displa
             logger.error(f"Wake word detection error: {e}")
             return False
     
+    def _detect_silence(self, audio_chunk, silence_threshold=500):
+        """Simple VAD using RMS energy detection."""
+        rms = np.sqrt(np.mean(audio_chunk.astype(np.float64) ** 2))
+        return rms < silence_threshold
+    
     def listen_for_command(self):
-        """Listen for a single voice command using ALSA directly."""
+        """Listen for voice command with VAD-based automatic end detection."""
         try:
-            print("🎤 Listening... speak your command now!")
-            
-            # Record audio using ALSA directly for better USB mic support
-            import subprocess
-            import tempfile
+            import pyaudio
             import wave
             
+            print("🎤 Listening... speak your command now!")
+            
+            # Audio recording parameters
+            sample_rate = 16000
+            chunk_size = 1024
+            silence_threshold = 500  # Adjust based on background noise
+            min_silence_duration = 0.8  # Seconds of silence to end recording
+            max_recording_duration = 10  # Maximum recording time
+            
+            audio_chunks = []
+            silence_chunks = 0
+            silence_chunks_needed = int(min_silence_duration * sample_rate / chunk_size)
+            total_chunks = 0
+            max_chunks = int(max_recording_duration * sample_rate / chunk_size)
+            
+            # Create audio stream for VAD
+            with self._suppress_alsa_messages():
+                stream = self.pyaudio.open(
+                    format=pyaudio.paInt16,
+                    channels=1,
+                    rate=sample_rate,
+                    input=True,
+                    input_device_index=self.usb_mic_index,
+                    frames_per_buffer=chunk_size
+                )
+            
+            logger.info("Recording with VAD - speak now...")
+            recording_started = False
+            
+            while total_chunks < max_chunks:
+                # Read audio chunk
+                audio_data = stream.read(chunk_size, exception_on_overflow=False)
+                audio_chunk = np.frombuffer(audio_data, dtype=np.int16)
+                
+                # Detect if this chunk contains speech
+                is_silent = self._detect_silence(audio_chunk, silence_threshold)
+                
+                if not is_silent:
+                    # Speech detected
+                    recording_started = True
+                    silence_chunks = 0
+                    audio_chunks.append(audio_data)
+                elif recording_started:
+                    # Silence after speech started
+                    silence_chunks += 1
+                    audio_chunks.append(audio_data)
+                    
+                    # Check if we've had enough silence to end recording
+                    if silence_chunks >= silence_chunks_needed:
+                        logger.info("Silence detected, ending recording")
+                        break
+                # else: silence before speech started, keep waiting
+                
+                total_chunks += 1
+            
+            stream.stop_stream()
+            stream.close()
+            
+            if not audio_chunks:
+                print("❓ No speech detected")
+                return None
+            
+            # Combine all audio chunks
+            combined_audio = b''.join(audio_chunks)
+            
+            # Convert to speech recognition format
             with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_file:
                 temp_path = temp_file.name
-            
-            # Record 5 seconds of audio using arecord
-            result = subprocess.run([
-                'arecord', '-D', self.usb_mic_device, 
-                '-f', 'S16_LE', '-r', '16000', '-c', '1',
-                '-d', '5', temp_path
-            ], capture_output=True, text=True)
-            
-            if result.returncode != 0:
-                logger.error(f"Recording failed: {result.stderr}")
-                os.unlink(temp_path)
-                return None
+                
+                # Write WAV file
+                with wave.open(temp_path, 'wb') as wav_file:
+                    wav_file.setnchannels(1)
+                    wav_file.setsampwidth(2)  # 16-bit
+                    wav_file.setframerate(sample_rate)
+                    wav_file.writeframes(combined_audio)
             
             # Use speech recognition on the recorded file
             with sr.AudioFile(temp_path) as source:
