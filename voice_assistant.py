@@ -51,7 +51,7 @@ class VoiceAssistant:
         self.chatgpt_model = os.getenv('CHATGPT_MODEL', 'gpt-3.5-turbo')
         self.max_tokens = int(os.getenv('CHATGPT_MAX_TOKENS', '50'))
         self.system_prompt = os.getenv('CHATGPT_SYSTEM_PROMPT', 
-            'You are a knowledgeable Bible study assistant. Provide accurate, thoughtful responses about the Bible, Christianity, and faith. Keep responses very brief (1-2 sentences max), suitable for voice interaction.')
+            'You are a knowledgeable Bible study assistant. Provide accurate, thoughtful responses about the Bible, Christianity, and faith. Keep responses VERY brief (1-2 sentences max, under 50 words) for voice assistant use. Be concise and direct.')
         
         # Porcupine access key
         self.porcupine_access_key = os.getenv('PICOVOICE_ACCESS_KEY', '')
@@ -849,9 +849,9 @@ class VoiceAssistant:
         self.queue_tts(text, priority=priority)
     
     def _play_openai_tts_stream(self, text):
-        """Generate speech using OpenAI TTS API and play it immediately."""
+        """Generate speech using OpenAI TTS API with fast WAV streaming playback."""
         try:
-            logger.info("🔊 Requesting OpenAI TTS...")
+            logger.info("🔊 Requesting OpenAI TTS (WAV format for speed)...")
             
             # Record first speech time for metrics
             if self.metrics['first_speech_time'] is None:
@@ -860,30 +860,49 @@ class VoiceAssistant:
             # Update visual state
             self._update_visual_state("speaking", f"Speaking via OpenAI TTS...")
             
-            # Generate speech using OpenAI TTS API
+            # Generate speech using OpenAI TTS API with WAV format for immediate streaming
             response = self.openai_client.audio.speech.create(
                 model="tts-1",
                 voice="nova",  # High-quality ChatGPT-like voice
-                input=text
+                input=text,
+                response_format="wav"  # WAV format for immediate streaming playback
             )
             
-            # Save to temporary file
-            with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmp:
-                tmp.write(response.content)
-                tmp_path = tmp.name
+            logger.info("🔊 Streaming OpenAI speech immediately...")
             
-            logger.info("🔊 Playing OpenAI speech...")
-            
-            # Play the MP3 through USB speakers
-            subprocess.run([
-                "ffplay", "-nodisp", "-autoexit", 
-                "-af", f"aformat=sample_rates=48000",  # Match USB speaker rate
-                tmp_path
-            ], capture_output=True)
-            
-            # Clean up
-            os.unlink(tmp_path)
-            logger.info("✅ OpenAI TTS playback complete")
+            # Stream WAV directly to USB speakers with aplay for minimal latency
+            try:
+                # Use aplay for direct USB speaker output with minimal buffering
+                aplay_process = subprocess.Popen([
+                    "aplay", 
+                    "-D", self.usb_speaker_device,  # Direct USB speaker output
+                    "-f", "S16_LE",  # 16-bit little endian
+                    "-r", "24000",   # OpenAI TTS default sample rate
+                    "-c", "1",       # Mono
+                    "--buffer-size=512",  # Small buffer for low latency
+                    "-"  # Read from stdin
+                ], stdin=subprocess.PIPE, stderr=subprocess.DEVNULL)
+                
+                # Stream audio data directly to aplay
+                aplay_process.communicate(input=response.content)
+                aplay_process.wait()
+                
+                logger.info("✅ OpenAI TTS streaming playback complete")
+                
+            except Exception as aplay_error:
+                logger.warning(f"aplay failed: {aplay_error}, trying ffplay fallback...")
+                
+                # Fallback to ffplay if aplay fails
+                with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+                    tmp.write(response.content)
+                    tmp_path = tmp.name
+                
+                subprocess.run([
+                    "ffplay", "-nodisp", "-autoexit", "-af", "aformat=sample_rates=48000",
+                    tmp_path
+                ], capture_output=True)
+                
+                os.unlink(tmp_path)
             
         except Exception as e:
             logger.error(f"OpenAI TTS playback failed: {e}")
