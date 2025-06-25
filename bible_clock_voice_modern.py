@@ -54,6 +54,7 @@ class ModernBibleClockVoice:
         self.verse_manager = None
         self.recognizer = None
         self.openai_client = None
+        self.porcupine = None
         
         if self.enabled:
             self._initialize_components()
@@ -80,6 +81,9 @@ class ModernBibleClockVoice:
             if not Path(self.piper_model_path).exists():
                 logger.error(f"Amy voice model not found: {self.piper_model_path}")
                 return False
+            
+            # Initialize Porcupine for wake word detection
+            self._initialize_porcupine()
             
             # Initialize OpenAI client (modern API)
             if self.openai_api_key:
@@ -117,6 +121,59 @@ class ModernBibleClockVoice:
             except Exception as e2:
                 logger.error(f"Failed to initialize OpenAI: {e2}")
                 self.openai_client = None
+    
+    def _initialize_porcupine(self):
+        """Initialize Porcupine wake word detection with PyAudio stream."""
+        try:
+            import pvporcupine
+            import pyaudio
+            
+            # Initialize Porcupine for "computer" wake word
+            self.porcupine = pvporcupine.create(
+                keywords=['computer'],  # Built-in keyword closest to our needs
+                sensitivities=[0.5]     # Medium sensitivity
+            )
+            
+            # Initialize PyAudio for proper audio stream handling
+            self.pyaudio = pyaudio.PyAudio()
+            
+            # Find USB microphone device index
+            self.usb_mic_index = self._find_usb_mic_device()
+            if self.usb_mic_index is None:
+                logger.warning("USB microphone not found, using default")
+                self.usb_mic_index = 0
+            
+            logger.info(f"Porcupine initialized - Sample rate: {self.porcupine.sample_rate}Hz")
+            logger.info(f"Using USB mic device index: {self.usb_mic_index}")
+            logger.info("Using 'computer' wake word (built-in trained model)")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Porcupine initialization failed: {e}")
+            logger.info("Falling back to Google Speech Recognition for wake word")
+            self.porcupine = None
+            return False
+    
+    def _find_usb_mic_device(self):
+        """Find USB microphone device index in PyAudio."""
+        try:
+            import pyaudio
+            
+            for i in range(self.pyaudio.get_device_count()):
+                device_info = self.pyaudio.get_device_info_by_index(i)
+                device_name = device_info.get('name', '').lower()
+                
+                # Look for USB audio devices
+                if any(keyword in device_name for keyword in ['usb', 'fifine', 'pnp', 'microphone']):
+                    if device_info.get('maxInputChannels', 0) > 0:
+                        logger.info(f"Found USB mic: {device_info['name']} (index {i})")
+                        return i
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error finding USB mic: {e}")
+            return None
     
     def speak_with_amy(self, text):
         """Convert text to speech using Piper Amy voice optimized for Pi 3B+."""
@@ -267,19 +324,63 @@ When asked to "explain this verse" or similar, refer to the current verse displa
             self.speak_with_amy("I'm sorry, I encountered an error processing your request.")
     
     def listen_for_wake_word(self):
-        """Listen for wake word using Google Speech Recognition."""
+        """Listen for wake word using Porcupine (preferred) or Google Speech Recognition (fallback)."""
+        if self.porcupine:
+            return self._listen_for_wake_word_porcupine()
+        else:
+            return self._listen_for_wake_word_google()
+    
+    def _listen_for_wake_word_porcupine(self):
+        """Listen for wake word using Porcupine with PyAudio stream."""
         try:
-            logger.info(f"👂 Listening for wake word '{self.wake_word}'...")
+            import pyaudio
+            
+            logger.info("👂 Listening for wake word 'computer' (Porcupine)...")
+            
+            # Create audio stream with Porcupine's exact requirements
+            audio_stream = self.pyaudio.open(
+                rate=self.porcupine.sample_rate,  # 16000 Hz
+                channels=1,
+                format=pyaudio.paInt16,
+                input=True,
+                input_device_index=self.usb_mic_index,
+                frames_per_buffer=self.porcupine.frame_length
+            )
             
             while True:
-                # Record 3 seconds of audio
-                import subprocess
-                import tempfile
+                try:
+                    # Read audio frame - exactly what Porcupine expects
+                    pcm = audio_stream.read(self.porcupine.frame_length)
+                    pcm = [int.from_bytes(pcm[i:i+2], byteorder='little', signed=True) 
+                           for i in range(0, len(pcm), 2)]
+                    
+                    # Process with Porcupine
+                    keyword_index = self.porcupine.process(pcm)
+                    
+                    if keyword_index >= 0:
+                        logger.info("🎯 Wake word 'computer' detected by Porcupine!")
+                        audio_stream.stop_stream()
+                        audio_stream.close()
+                        return True
+                        
+                except Exception as e:
+                    logger.error(f"Porcupine processing error: {e}")
+                    continue
                 
+        except Exception as e:
+            logger.error(f"Porcupine wake word detection error: {e}")
+            return False
+    
+    def _listen_for_wake_word_google(self):
+        """Fallback wake word detection using Google Speech Recognition."""
+        try:
+            logger.info(f"👂 Listening for wake word '{self.wake_word}' (Google SR fallback)...")
+            
+            while True:
                 with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_file:
                     temp_path = temp_file.name
                 
-                # Record from USB microphone - shorter for faster response
+                # Record from USB microphone
                 result = subprocess.run([
                     'arecord', '-D', self.usb_mic_device,
                     '-f', 'S16_LE', '-r', '16000', '-c', '1',
@@ -291,10 +392,7 @@ When asked to "explain this verse" or similar, refer to the current verse displa
                     os.unlink(temp_path)
                     continue
                 
-                # Use speech recognition to check for wake word
                 try:
-                    import speech_recognition as sr
-                    
                     with sr.AudioFile(temp_path) as source:
                         audio = self.recognizer.record(source)
                     
@@ -303,7 +401,7 @@ When asked to "explain this verse" or similar, refer to the current verse displa
                         logger.info(f"Heard: '{text}'")
                         
                         # Check for wake word variations
-                        wake_variations = ['bible clock', 'bible', 'clock']
+                        wake_variations = ['bible clock', 'bible', 'clock', 'computer']
                         if any(word in text for word in wake_variations):
                             logger.info(f"🎯 Wake word detected in: '{text}'")
                             os.unlink(temp_path)
@@ -386,8 +484,12 @@ def main():
         print("❌ Voice control disabled. Check configuration.")
         return
     
-    # Wake word is always available with speech recognition
-    print(f"🎯 Wake word: '{voice_system.wake_word}' - Ready!")
+    # Show active wake word detection method
+    if voice_system.porcupine:
+        print("🎯 Wake word: 'computer' (Porcupine) - Ready!")
+        print("💡 Note: Say 'computer' to activate (custom 'Bible Clock' coming soon)")
+    else:
+        print(f"🎯 Wake word: '{voice_system.wake_word}' (Google SR fallback) - Ready!")
     # Skip startup voice message for instant readiness
     
     print("\n🎯 VOICE COMMANDS:")
