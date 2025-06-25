@@ -45,7 +45,7 @@ class ModernBibleClockVoice:
             'You are a knowledgeable Bible study assistant. Provide accurate, thoughtful responses about the Bible, Christianity, and faith. Keep responses very brief (1-2 sentences max), suitable for voice interaction.')
         
         # Porcupine access key
-        self.porcupine_access_key = os.getenv('PORCUPINE_ACCESS_KEY', '')
+        self.porcupine_access_key = os.getenv('PICOVOICE_ACCESS_KEY', '')
         
         # Wake word configuration
         self.wake_word = 'Bible Clock'
@@ -139,8 +139,8 @@ class ModernBibleClockVoice:
                 return False
             
             if not self.porcupine_access_key:
-                logger.error("PORCUPINE_ACCESS_KEY not found in environment variables")
-                logger.info("Please add PORCUPINE_ACCESS_KEY to your .env file")
+                logger.error("PICOVOICE_ACCESS_KEY not found in environment variables")
+                logger.info("Please add PICOVOICE_ACCESS_KEY to your .env file")
                 logger.info("Get your free access key from: https://console.picovoice.ai/")
                 return False
             
