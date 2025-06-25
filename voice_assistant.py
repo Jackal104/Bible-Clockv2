@@ -467,8 +467,9 @@ class VoiceAssistant:
             # Record command start time
             self.metrics['command_start_time'] = time_module.time()
             
-            # Audio recording parameters
-            sample_rate = 16000
+            # Audio recording parameters - use mic's native rate
+            mic_sample_rate = self.mic_sample_rate  # Use detected mic rate (48kHz)
+            target_sample_rate = 16000  # For speech recognition
             chunk_size = 1024
             silence_threshold = 500
             min_silence_duration = 0.8
@@ -476,16 +477,16 @@ class VoiceAssistant:
             
             audio_chunks = []
             silence_chunks = 0
-            silence_chunks_needed = int(min_silence_duration * sample_rate / chunk_size)
+            silence_chunks_needed = int(min_silence_duration * mic_sample_rate / chunk_size)
             total_chunks = 0
-            max_chunks = int(max_recording_duration * sample_rate / chunk_size)
+            max_chunks = int(max_recording_duration * mic_sample_rate / chunk_size)
             
-            # Create audio stream for VAD
+            # Create audio stream at mic's native sample rate
             with self._suppress_alsa_messages():
                 stream = self.pyaudio.open(
                     format=pyaudio.paInt16,
                     channels=1,
-                    rate=sample_rate,
+                    rate=mic_sample_rate,  # Use mic's native rate
                     input=True,
                     input_device_index=self.usb_mic_index,
                     frames_per_buffer=chunk_size
@@ -530,16 +531,28 @@ class VoiceAssistant:
             # Combine all audio chunks
             combined_audio = b''.join(audio_chunks)
             
+            # Convert audio to numpy array for resampling
+            audio_array = np.frombuffer(combined_audio, dtype=np.int16)
+            
+            # Resample from mic rate to target rate for speech recognition
+            if mic_sample_rate != target_sample_rate:
+                resampled_audio = self._resample_audio_chunk(
+                    audio_array, mic_sample_rate, target_sample_rate
+                )
+                resampled_bytes = resampled_audio.astype(np.int16).tobytes()
+            else:
+                resampled_bytes = combined_audio
+            
             # Convert to speech recognition format
             with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_file:
                 temp_path = temp_file.name
                 
-                # Write WAV file
+                # Write WAV file at 16kHz for speech recognition
                 with wave.open(temp_path, 'wb') as wav_file:
                     wav_file.setnchannels(1)
                     wav_file.setsampwidth(2)
-                    wav_file.setframerate(sample_rate)
-                    wav_file.writeframes(combined_audio)
+                    wav_file.setframerate(target_sample_rate)  # 16kHz for speech recognition
+                    wav_file.writeframes(resampled_bytes)
             
             self._update_visual_state("processing", "Processing command...")
             
