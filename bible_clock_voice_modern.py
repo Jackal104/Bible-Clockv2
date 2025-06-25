@@ -123,15 +123,22 @@ class ModernBibleClockVoice:
                 self.openai_client = None
     
     def _initialize_porcupine(self):
-        """Initialize Porcupine wake word detection with PyAudio stream."""
+        """Initialize Porcupine wake word detection with custom Bible Clock wake word."""
         try:
             import pvporcupine
             import pyaudio
             
-            # Initialize Porcupine for "computer" wake word
+            # Path to custom Bible Clock wake word file
+            bible_clock_ppn = Path('./Bible-Clock_en_raspberry-pi_v3_0_0.ppn')
+            
+            if not bible_clock_ppn.exists():
+                logger.error(f"Custom Bible Clock wake word file not found: {bible_clock_ppn}")
+                return False
+            
+            # Initialize Porcupine with custom "Bible Clock" wake word
             self.porcupine = pvporcupine.create(
-                keywords=['computer'],  # Built-in keyword closest to our needs
-                sensitivities=[0.5]     # Medium sensitivity
+                keyword_paths=[str(bible_clock_ppn)],  # Your custom Bible Clock wake word
+                sensitivities=[0.5]                    # Medium sensitivity
             )
             
             # Initialize PyAudio for proper audio stream handling
@@ -145,7 +152,7 @@ class ModernBibleClockVoice:
             
             logger.info(f"Porcupine initialized - Sample rate: {self.porcupine.sample_rate}Hz")
             logger.info(f"Using USB mic device index: {self.usb_mic_index}")
-            logger.info("Using 'computer' wake word (built-in trained model)")
+            logger.info("Using custom 'Bible Clock' wake word model")
             return True
             
         except Exception as e:
@@ -335,7 +342,7 @@ When asked to "explain this verse" or similar, refer to the current verse displa
         try:
             import pyaudio
             
-            logger.info("👂 Listening for wake word 'computer' (Porcupine)...")
+            logger.info("👂 Listening for wake word 'Bible Clock' (Porcupine)...")
             
             # Create audio stream with Porcupine's exact requirements
             audio_stream = self.pyaudio.open(
@@ -358,7 +365,7 @@ When asked to "explain this verse" or similar, refer to the current verse displa
                     keyword_index = self.porcupine.process(pcm)
                     
                     if keyword_index >= 0:
-                        logger.info("🎯 Wake word 'computer' detected by Porcupine!")
+                        logger.info("🎯 Wake word 'Bible Clock' detected by Porcupine!")
                         audio_stream.stop_stream()
                         audio_stream.close()
                         return True
@@ -486,8 +493,7 @@ def main():
     
     # Show active wake word detection method
     if voice_system.porcupine:
-        print("🎯 Wake word: 'computer' (Porcupine) - Ready!")
-        print("💡 Note: Say 'computer' to activate (custom 'Bible Clock' coming soon)")
+        print("🎯 Wake word: 'Bible Clock' (Custom Porcupine Model) - Ready!")
     else:
         print(f"🎯 Wake word: '{voice_system.wake_word}' (Google SR fallback) - Ready!")
     # Skip startup voice message for instant readiness
