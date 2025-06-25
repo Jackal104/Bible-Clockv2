@@ -16,6 +16,7 @@ from dotenv import load_dotenv
 import numpy as np
 import threading
 import queue
+import time as time_module
 
 # Suppress ALSA error messages
 os.environ['ALSA_QUIET'] = '1'
@@ -73,6 +74,21 @@ class ModernBibleClockVoice:
         self.tts_queue = queue.Queue()
         self.tts_thread = None
         self.tts_thread_running = False
+        self.tts_interrupt_event = threading.Event()
+        
+        # Performance metrics
+        self.metrics = {
+            'wake_word_time': None,
+            'command_start_time': None,
+            'command_end_time': None,
+            'gpt_start_time': None,
+            'gpt_first_response_time': None,
+            'first_speech_time': None
+        }
+        
+        # Interrupt detection
+        self.interrupt_detection_active = False
+        self.interrupt_thread = None
         
         if self.enabled:
             self._initialize_components()
@@ -301,12 +317,137 @@ class ModernBibleClockVoice:
             logger.error(f"Resampling error: {e}")
             return audio_chunk
     
+    def _start_interrupt_detection(self):
+        """Start background thread to detect wake word interrupts during TTS."""
+        if self.porcupine and not self.interrupt_detection_active:
+            self.interrupt_detection_active = True
+            self.interrupt_thread = threading.Thread(target=self._interrupt_detector, daemon=True)
+            self.interrupt_thread.start()
+            logger.info("Interrupt detection started")
+    
+    def _stop_interrupt_detection(self):
+        """Stop interrupt detection."""
+        self.interrupt_detection_active = False
+    
+    def _interrupt_detector(self):
+        """Background thread that listens for wake word to interrupt current TTS."""
+        try:
+            import pyaudio
+            
+            # Calculate frame sizes for resampling
+            mic_frame_size = int(self.porcupine.frame_length * self.mic_sample_rate / self.porcupine.sample_rate)
+            
+            # Create audio stream at mic's native sample rate
+            with self._suppress_alsa_messages():
+                audio_stream = self.pyaudio.open(
+                    rate=self.mic_sample_rate,
+                    channels=1,
+                    format=pyaudio.paInt16,
+                    input=True,
+                    input_device_index=self.usb_mic_index,
+                    frames_per_buffer=mic_frame_size
+                )
+            
+            while self.interrupt_detection_active:
+                try:
+                    # Read audio at mic's native rate
+                    pcm_bytes = audio_stream.read(mic_frame_size, exception_on_overflow=False)
+                    pcm_array = np.frombuffer(pcm_bytes, dtype=np.int16)
+                    
+                    # Resample to Porcupine's required rate
+                    resampled = self._resample_audio_chunk(
+                        pcm_array, self.mic_sample_rate, self.porcupine.sample_rate
+                    )
+                    
+                    if len(resampled) >= self.porcupine.frame_length:
+                        frame = resampled[:self.porcupine.frame_length]
+                        keyword_index = self.porcupine.process(frame.tolist())
+                        
+                        if keyword_index >= 0:
+                            logger.info("🔥 Interrupt detected! Canceling current response...")
+                            # Signal TTS to stop and clear queue
+                            self.tts_interrupt_event.set()
+                            # Clear the TTS queue
+                            while not self.tts_queue.empty():
+                                try:
+                                    self.tts_queue.get_nowait()
+                                except queue.Empty:
+                                    break
+                            # Reset metrics for new interaction
+                            self._reset_metrics()
+                            self.metrics['wake_word_time'] = time_module.time()
+                            # Stop interrupt detection temporarily
+                            self._stop_interrupt_detection()
+                            # Handle new command
+                            command = self.listen_for_command()
+                            if command:
+                                self.process_voice_command(command)
+                            return
+                        
+                except Exception as e:
+                    logger.warning(f"Interrupt detection error: {e}")
+                    continue
+            
+            audio_stream.stop_stream()
+            audio_stream.close()
+            
+        except Exception as e:
+            logger.error(f"Interrupt detection failed: {e}")
+    
     def _start_tts_worker(self):
         """Start the TTS worker thread to prevent overlapping speech."""
         self.tts_thread_running = True
         self.tts_thread = threading.Thread(target=self._tts_worker, daemon=True)
         self.tts_thread.start()
         logger.info("TTS worker thread started")
+    
+    def _reset_metrics(self):
+        """Reset performance metrics for new interaction."""
+        for key in self.metrics:
+            self.metrics[key] = None
+    
+    def _log_metrics(self):
+        """Log performance metrics."""
+        try:
+            if self.metrics['wake_word_time'] and self.metrics['first_speech_time']:
+                total_time = self.metrics['first_speech_time'] - self.metrics['wake_word_time']
+                
+                timings = {
+                    'wake_to_command': None,
+                    'command_duration': None,
+                    'gpt_response_time': None,
+                    'gpt_to_speech': None,
+                    'total_interaction': total_time
+                }
+                
+                if self.metrics['command_start_time']:
+                    timings['wake_to_command'] = self.metrics['command_start_time'] - self.metrics['wake_word_time']
+                
+                if self.metrics['command_end_time'] and self.metrics['command_start_time']:
+                    timings['command_duration'] = self.metrics['command_end_time'] - self.metrics['command_start_time']
+                
+                if self.metrics['gpt_first_response_time'] and self.metrics['gpt_start_time']:
+                    timings['gpt_response_time'] = self.metrics['gpt_first_response_time'] - self.metrics['gpt_start_time']
+                
+                if self.metrics['first_speech_time'] and self.metrics['gpt_first_response_time']:
+                    timings['gpt_to_speech'] = self.metrics['first_speech_time'] - self.metrics['gpt_first_response_time']
+                
+                logger.info("📊 Performance Metrics:")
+                logger.info(f"  Total interaction: {total_time:.2f}s")
+                if timings['wake_to_command']:
+                    logger.info(f"  Wake → Command: {timings['wake_to_command']:.2f}s")
+                if timings['command_duration']:
+                    logger.info(f"  Command duration: {timings['command_duration']:.2f}s")
+                if timings['gpt_response_time']:
+                    logger.info(f"  GPT response: {timings['gpt_response_time']:.2f}s")
+                if timings['gpt_to_speech']:
+                    logger.info(f"  GPT → Speech: {timings['gpt_to_speech']:.2f}s")
+                
+                return timings
+                
+        except Exception as e:
+            logger.error(f"Metrics logging error: {e}")
+        return None
     
     def _tts_worker(self):
         """Worker thread that processes TTS queue to prevent overlapping speech."""
@@ -317,11 +458,33 @@ class ModernBibleClockVoice:
                 if tts_text is None:  # Shutdown signal
                     break
                 
+                # Check for interrupt before speaking
+                if self.tts_interrupt_event.is_set():
+                    self.tts_interrupt_event.clear()
+                    logger.info("TTS interrupted, skipping queued message")
+                    self.tts_queue.task_done()
+                    continue
+                
+                # Record first speech time for metrics
+                if self.metrics['first_speech_time'] is None:
+                    self.metrics['first_speech_time'] = time_module.time()
+                
+                # Start interrupt detection during TTS
+                self._start_interrupt_detection()
+                
                 # Speak the text (this will block until complete)
                 self._speak_with_amy_direct(tts_text)
                 
+                # Stop interrupt detection
+                self._stop_interrupt_detection()
+                
                 # Mark task as done
                 self.tts_queue.task_done()
+                
+                # Log metrics if this was the first speech
+                if self.metrics['first_speech_time'] and not hasattr(self, '_metrics_logged'):
+                    self._log_metrics()
+                    self._metrics_logged = True
                 
             except queue.Empty:
                 continue  # Timeout, check if still running
@@ -408,6 +571,9 @@ class ModernBibleClockVoice:
 
 When asked to "explain this verse" or similar, refer to the current verse displayed above."""
             
+            # Record GPT start time
+            self.metrics['gpt_start_time'] = time_module.time()
+            
             # Use streaming for real-time response
             if self.api_version == "modern":
                 response_stream = self.openai_client.chat.completions.create(
@@ -430,6 +596,10 @@ When asked to "explain this verse" or similar, refer to the current verse displa
                         content = chunk.choices[0].delta.content
                         full_response += content
                         sentence_buffer += content
+                        
+                        # Record first response time
+                        if self.metrics['gpt_first_response_time'] is None:
+                            self.metrics['gpt_first_response_time'] = time_module.time()
                         
                         # Queue complete sentences as they arrive
                         if any(punct in sentence_buffer for punct in ['.', '!', '?', '\n']):
@@ -571,6 +741,9 @@ When asked to "explain this verse" or similar, refer to the current verse displa
                         
                         if keyword_index >= 0:
                             logger.info("🎯 Wake word 'Bible Clock' detected by Porcupine!")
+                            # Record wake word detection time
+                            self._reset_metrics()
+                            self.metrics['wake_word_time'] = time_module.time()
                             audio_stream.stop_stream()
                             audio_stream.close()
                             return True
@@ -645,6 +818,9 @@ When asked to "explain this verse" or similar, refer to the current verse displa
             import wave
             
             print("🎤 Listening... speak your command now!")
+            
+            # Record command start time
+            self.metrics['command_start_time'] = time_module.time()
             
             # Audio recording parameters
             sample_rate = 16000
@@ -726,6 +902,9 @@ When asked to "explain this verse" or similar, refer to the current verse displa
             
             command = self.recognizer.recognize_google(audio).lower()
             print(f"✅ Command: '{command}'")
+            
+            # Record command end time
+            self.metrics['command_end_time'] = time_module.time()
             
             # Clean up
             os.unlink(temp_path)
