@@ -475,7 +475,7 @@ class VoiceAssistant:
             target_sample_rate = 16000  # For speech recognition
             chunk_size = 1024
             silence_threshold = 500
-            min_silence_duration = 0.8
+            min_silence_duration = 0.4  # Reduced from 0.8s for faster response
             max_recording_duration = 10
             
             audio_chunks = []
@@ -870,24 +870,34 @@ class VoiceAssistant:
             
             logger.info("🔊 Streaming OpenAI speech immediately...")
             
-            # Stream WAV directly to USB speakers with aplay for minimal latency
+            # Use optimized pipeline: cat | aplay for minimal process overhead
             try:
-                # Use aplay for direct USB speaker output with minimal buffering
+                # Create optimized pipeline for immediate audio start
+                logger.info("🔊 Starting optimized audio pipeline...")
+                
+                # Method 1: Direct pipe to aplay (fastest)
+                cat_process = subprocess.Popen(["cat"], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
                 aplay_process = subprocess.Popen([
-                    "aplay", 
-                    "-D", self.usb_speaker_device,  # Direct USB speaker output
-                    "-f", "S16_LE",  # 16-bit little endian
-                    "-r", "24000",   # OpenAI TTS default sample rate
-                    "-c", "1",       # Mono
-                    "--buffer-size=512",  # Small buffer for low latency
-                    "-"  # Read from stdin
-                ], stdin=subprocess.PIPE, stderr=subprocess.DEVNULL)
+                    "aplay",
+                    "-D", self.usb_speaker_device,
+                    "-f", "S16_LE", "-r", "24000", "-c", "1",
+                    "--buffer-size=256",  # Even smaller buffer
+                    "--period-size=128",  # Minimal period for instant start
+                    "-"
+                ], stdin=cat_process.stdout, stderr=subprocess.DEVNULL)
                 
-                # Stream audio data directly to aplay
-                aplay_process.communicate(input=response.content)
+                # Close cat stdout to allow proper pipeline
+                cat_process.stdout.close()
+                
+                # Feed audio data to pipeline
+                cat_process.stdin.write(response.content)
+                cat_process.stdin.close()
+                
+                # Wait for playback completion
                 aplay_process.wait()
+                cat_process.wait()
                 
-                logger.info("✅ OpenAI TTS streaming playback complete")
+                logger.info("✅ Optimized TTS pipeline playback complete")
                 
             except Exception as aplay_error:
                 logger.warning(f"aplay failed: {aplay_error}, trying ffplay fallback...")
@@ -948,20 +958,37 @@ When asked to "explain this verse" or similar, refer to the current verse displa
                     stream=True  # Enable streaming for real-time response
                 )
                 
-                # Collect full response for OpenAI TTS
+                # Collect response with early TTS optimization
                 full_response = ""
+                word_count = 0
+                early_tts_sent = False
                 
                 for chunk in response_stream:
                     if chunk.choices[0].delta.content:
                         content = chunk.choices[0].delta.content
                         full_response += content
+                        word_count += len(content.split())
                         
                         # Record first response time
                         if self.metrics['gpt_first_response_time'] is None:
                             self.metrics['gpt_first_response_time'] = time_module.time()
+                        
+                        # Early TTS optimization: if we have a complete sentence (~15+ words)
+                        # and it ends with punctuation, start TTS immediately
+                        if (not early_tts_sent and word_count >= 15 and 
+                            any(punct in content for punct in ['.', '!', '?']) and
+                            len(full_response.strip()) > 30):
+                            
+                            # Check if this looks like a complete thought
+                            trimmed_response = full_response.strip()
+                            if any(trimmed_response.endswith(punct) for punct in ['.', '!', '?']):
+                                logger.info("🚀 Early TTS trigger - sending partial response")
+                                self._play_openai_tts_stream(trimmed_response)
+                                early_tts_sent = True
+                                return trimmed_response
                 
-                # Use OpenAI TTS for the complete response (much faster!)
-                if full_response.strip():
+                # Use OpenAI TTS for the complete response if early TTS wasn't triggered
+                if not early_tts_sent and full_response.strip():
                     self._play_openai_tts_stream(full_response.strip())
                 
                 logger.info(f"ChatGPT streaming response: {full_response[:100]}...")
