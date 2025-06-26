@@ -5,9 +5,10 @@ Manages e-ink display output and simulation.
 import os
 import logging
 import psutil
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 from typing import Optional
 import time
+import threading
 
 from display_constants import DisplayModes
 
@@ -126,6 +127,72 @@ class DisplayManager:
         """Clear the display to white."""
         white_image = Image.new('L', (self.width, self.height), 255)
         self.display_image(white_image, force_refresh=True)
+    
+    def show_transient_message(self, state: str, message: str = None, duration: float = 2.0):
+        """Show a temporary message overlay on the display."""
+        try:
+            # Map voice states to display messages
+            display_messages = {
+                "wake_detected": "🎤 Listening...",
+                "listening": "🎤 Listening...",
+                "recording": "🎙️ Recording...",
+                "processing": "💭 Processing...",
+                "thinking": "🤔 Thinking...",
+                "speaking": "🔊 Speaking...",
+                "ready": "✅ Ready",
+                "error": "❌ Error",
+                "interrupted": "⏸️ Interrupted"
+            }
+            
+            # Get display text
+            display_text = display_messages.get(state, message or state)
+            
+            # Create a simple overlay image
+            overlay = Image.new('L', (self.width, self.height), 255)  # white background
+            draw = ImageDraw.Draw(overlay)
+            
+            # Use a simple font for the message
+            try:
+                font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 48)
+            except:
+                try:
+                    font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 48)
+                except:
+                    font = ImageFont.load_default()
+            
+            # Calculate text size and position
+            text_bbox = draw.textbbox((0, 0), display_text, font=font)
+            text_width = text_bbox[2] - text_bbox[0]
+            text_height = text_bbox[3] - text_bbox[1]
+            
+            # Position in top-left corner with padding
+            x, y = 30, 30
+            
+            # Draw white rectangle background with black border
+            draw.rectangle((x - 15, y - 15, x + text_width + 30, y + text_height + 30), 
+                          fill=255, outline=0, width=4)
+            
+            # Draw black text
+            draw.text((x, y), display_text, font=font, fill=0)
+            
+            # Display the overlay
+            self.display_image(overlay, force_refresh=True)
+            
+            self.logger.info(f"Showing visual feedback: {state} -> {display_text}")
+            
+            # Start a timer to restore normal display (only for certain states)
+            if state in ["wake_detected", "listening", "recording", "ready"]:
+                def restore_display():
+                    time.sleep(duration)
+                    # Force a display update to clear the message
+                    # The next scheduled update will restore normal content
+                    self.logger.info("Visual feedback expired")
+                
+                timer_thread = threading.Thread(target=restore_display, daemon=True)
+                timer_thread.start()
+            
+        except Exception as e:
+            self.logger.error(f"Failed to show visual feedback: {e}")
     
     def get_display_info(self) -> dict:
         """Get display information."""

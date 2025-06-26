@@ -17,7 +17,7 @@ from verse_manager import VerseManager
 from image_generator import ImageGenerator
 from display_manager import DisplayManager
 from service_manager import ServiceManager
-from voice_control import VoiceControl
+from voice_assistant import VoiceAssistant as VoiceControl
 
 def setup_logging(level=logging.INFO, log_file=None):
     """Set up logging configuration."""
@@ -81,7 +81,10 @@ def create_app_components(args):
     voice_control = None
     if args.enable_voice and not args.disable_voice:
         try:
-            voice_control = VoiceControl(verse_manager, image_generator, display_manager)
+            voice_control = VoiceControl(
+                verse_manager,
+                visual_feedback_callback=display_manager.show_transient_message
+            )
             logger.info("Voice control enabled")
         except Exception as e:
             logger.warning(f"Voice control initialization failed: {e}")
