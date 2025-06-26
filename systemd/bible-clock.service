@@ -5,11 +5,11 @@ Wants=network.target
 
 [Service]
 Type=simple
-User=admin
-Group=admin
-WorkingDirectory=/home/admin/Bible-Clock-v3
-Environment="PATH=/home/admin/Bible-Clock-v3/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-ExecStart=/bin/bash /home/admin/Bible-Clock-v3/start_bible_clock.sh
+User=pi
+Group=pi
+WorkingDirectory=/home/pi/Bible-Clockv2
+Environment="PATH=/home/pi/Bible-Clockv2/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+ExecStart=/bin/bash /home/pi/Bible-Clockv2/start_bible_clock.sh
 Restart=always
 RestartSec=10
 StandardOutput=journal
