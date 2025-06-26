@@ -18,8 +18,10 @@ import threading
 import queue
 import contextlib
 
-# Suppress ALSA error messages - minimal approach
+# Suppress ALSA error messages
 os.environ['ALSA_QUIET'] = '1'
+os.environ['ALSA_CARD'] = os.getenv('ALSA_CARD', '1')
+os.environ['PULSE_RUNTIME_PATH'] = '/dev/null'
 os.environ['JACK_NO_START_SERVER'] = '1'
 
 # Load environment variables
@@ -45,16 +47,8 @@ class VoiceAssistant:
         self.usb_mic_device = 'plughw:1,0'
         
         # API configuration
-        self.openai_api_key = os.getenv('OPENAI_API_KEY', '').replace('\n', '').replace('\r', '').replace(' ', '')
+        self.openai_api_key = os.getenv('OPENAI_API_KEY', '')
         self.chatgpt_model = os.getenv('CHATGPT_MODEL', 'gpt-3.5-turbo')
-        
-        # TTS configuration from environment variables
-        self.tts_engine = os.getenv('TTS_ENGINE', 'openai')
-        self.tts_model = os.getenv('TTS_MODEL', 'tts-1')
-        self.tts_voice = os.getenv('TTS_VOICE', 'nova')
-        self.tts_audio_format = os.getenv('TTS_AUDIO_FORMAT', 'wav')
-        self.tts_streaming = os.getenv('TTS_STREAMING', 'true').lower() == 'true'
-        self.allow_piper_fallback = os.getenv('ALLOW_PIPER_FALLBACK', 'true').lower() == 'true'
         self.max_tokens = int(os.getenv('CHATGPT_MAX_TOKENS', '50'))
         self.system_prompt = os.getenv('CHATGPT_SYSTEM_PROMPT', 
             'You are a knowledgeable Bible study assistant. Provide accurate, thoughtful responses about the Bible, Christianity, and faith. Keep responses VERY brief (1-2 sentences max, under 50 words) for voice assistant use. Be concise and direct.')
@@ -202,6 +196,12 @@ class VoiceAssistant:
             self.mic_sample_rate = self._get_mic_sample_rate()
             logger.info(f"USB mic native sample rate: {self.mic_sample_rate}Hz")
             
+            # Find USB microphone device index
+            self.usb_mic_index = self._find_usb_mic_device()
+            if self.usb_mic_index is None:
+                logger.warning("No microphone found, using default device 0")
+                self.usb_mic_index = 0
+            
             logger.info(f"Porcupine initialized - Sample rate: {self.porcupine.sample_rate}Hz")
             logger.info(f"Using USB mic device index: {self.usb_mic_index}")
             logger.info("Using custom 'Bible Clock' wake word model")
@@ -222,10 +222,7 @@ class VoiceAssistant:
         try:
             # Try modern OpenAI API (1.0+)
             from openai import OpenAI
-            self.openai_client = OpenAI(
-            api_key=self.openai_api_key,
-            timeout=60.0  # 60 second timeout for TTS streaming
-        )
+            self.openai_client = OpenAI(api_key=self.openai_api_key)
             self.api_version = "modern"
             logger.info("Using modern OpenAI API (1.0+)")
         except Exception as e:
@@ -842,7 +839,8 @@ class VoiceAssistant:
             if result.returncode == 0:
                 # Play audio through correct USB speakers with maximum speed
                 subprocess.run(['aplay', '-D', self.usb_speaker_device, 
-                              '--buffer-size=512', '--period-size=256', temp_path])
+                              '--buffer-size=512', '--period-size=256', temp_path], 
+                             capture_output=True)
                 logger.info("Audio played successfully")
             else:
                 logger.error(f"Piper TTS failed: {result.stderr}")
@@ -857,92 +855,87 @@ class VoiceAssistant:
         """Queue text for TTS to prevent overlapping speech."""
         self.queue_tts(text, priority=priority)
     
-    def _play_openai_tts_stream(self, text):
-        """Generate speech using OpenAI TTS API with fast streaming playback and mic management."""
+def _play_openai_tts_stream(self, text):
+    """Generate speech using OpenAI TTS API with fast WAV streaming playback."""
+    try:
+        logger.info("🔊 Requesting OpenAI TTS (WAV format for speed)...")
+
+        # Record first speech time for metrics
+        if self.metrics['first_speech_time'] is None:
+            self.metrics['first_speech_time'] = time_module.time()
+
+        # Update visual state
+        self._update_visual_state("speaking", f"Speaking via OpenAI TTS...")
+
+        # Generate speech using OpenAI TTS API with WAV format for immediate streaming
+        response = self.openai_client.audio.speech.create(
+            model="tts-1",
+            voice="nova",  # High-quality ChatGPT-like voice
+            input=text,
+            response_format="wav"
+        )
+
+        # ✅ PAUSE mic before playback to avoid audio conflict
         try:
-            logger.info("🔊 Requesting OpenAI TTS...")
-            
-            # Record first speech time for metrics
-            if self.metrics['first_speech_time'] is None:
-                self.metrics['first_speech_time'] = time_module.time()
-            
-            # Update visual state
-            self._update_visual_state("speaking", f"Speaking via OpenAI TTS...")
-            
-            # Generate speech using OpenAI TTS API with configurable settings
-            logger.info(f"🔊 TTS Config - Model: {self.tts_model}, Voice: {self.tts_voice}, Format: {self.tts_audio_format}")
-            response = self.openai_client.audio.speech.create(
-                model=self.tts_model,
-                voice=self.tts_voice,
-                input=text,
-                response_format=self.tts_audio_format
-            )
-            
-            # ✅ PAUSE mic before playback to avoid audio conflict
-            try:
-                if hasattr(self, 'pyaudio') and self.pyaudio:
-                    self.pyaudio.terminate()
-                    logger.info("🎙️ Paused audio input before playback")
-            except Exception as pause_err:
-                logger.warning(f"Failed to pause mic: {pause_err}")
-            
-            logger.info("🔊 Streaming OpenAI speech immediately...")
-            
-            # Use ffplay for MP3 playback (handles format automatically)
-            try:
-                logger.info("🔊 Playing audio with ffplay...")
-                
-                with tempfile.NamedTemporaryFile(suffix=f".{self.tts_audio_format}", delete=False) as tmp:
-                    tmp.write(response.content)
-                    tmp_path = tmp.name
-                
-                # Use ffplay which handles MP3/WAV automatically and routes to USB speakers
-                result = subprocess.run([
-                    "ffplay", "-nodisp", "-autoexit", "-volume", "70",
-                    tmp_path
-                ], capture_output=True, timeout=30)
-                
-                os.unlink(tmp_path)
-                
-                if result.returncode == 0:
-                    logger.info("✅ Audio playback successful")
-                else:
-                    logger.warning(f"ffplay returned error code {result.returncode}")
-                
-            except Exception as play_error:
-                logger.warning(f"Audio playback failed: {play_error}")
-                
-                # Fallback: try direct aplay with WAV format only
-                if self.tts_audio_format == "wav":
-                    try:
-                        aplay_process = subprocess.Popen([
-                            "aplay", "-D", self.usb_speaker_device,
-                            "-f", "S16_LE", "-r", "24000", "-c", "1", "-"
-                        ], stdin=subprocess.PIPE, stderr=subprocess.DEVNULL)
-                        
-                        aplay_process.communicate(input=response.content)
-                        logger.info("✅ Fallback aplay playback complete")
-                    except Exception as aplay_error:
-                        logger.error(f"All playback methods failed: {aplay_error}")
-            
-            # 🔁 RESTART mic after playback
-            try:
-                import pyaudio
-                with self._suppress_alsa_messages():
-                    self.pyaudio = pyaudio.PyAudio()
-                self.usb_mic_index = self._find_usb_mic_device()
-                logger.info("🎙️ Resumed audio input after playback")
-            except Exception as resume_err:
-                logger.warning(f"Failed to restart mic: {resume_err}")
-                
-        except Exception as e:
-            logger.error(f"OpenAI TTS playback failed: {e}")
-            
-            if self.allow_piper_fallback:
-                logger.info("Falling back to Piper TTS...")
-                self.queue_tts(text)
-            else:
-                logger.warning("❌ Skipping TTS: OpenAI failed and Piper fallback is disabled (ALLOW_PIPER_FALLBACK=false)")
+            if self.pyaudio:
+                self.pyaudio.terminate()
+                logger.info("🎙️ Paused audio input before playback")
+        except Exception as pause_err:
+            logger.warning(f"Failed to pause mic: {pause_err}")
+
+        logger.info("🔊 Streaming OpenAI speech immediately...")
+
+        # Optimized pipeline: cat | aplay
+        try:
+            logger.info("🔊 Starting optimized audio pipeline...")
+
+            cat_process = subprocess.Popen(["cat"], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+            aplay_process = subprocess.Popen([
+                "aplay",
+                "-D", self.usb_speaker_device,
+                "-f", "S16_LE", "-r", "24000", "-c", "1",
+                "--buffer-size=256",
+                "--period-size=128",
+                "-"
+            ], stdin=cat_process.stdout, stderr=subprocess.DEVNULL)
+
+            cat_process.stdout.close()
+            cat_process.stdin.write(response.content)
+            cat_process.stdin.close()
+
+            aplay_process.wait()
+            cat_process.wait()
+
+            logger.info("✅ Optimized TTS pipeline playback complete")
+
+        except Exception as aplay_error:
+            logger.warning(f"aplay failed: {aplay_error}, trying ffplay fallback...")
+
+            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+                tmp.write(response.content)
+                tmp_path = tmp.name
+
+            subprocess.run([
+                "ffplay", "-nodisp", "-autoexit", "-af", "aformat=sample_rates=48000",
+                tmp_path
+            ], capture_output=True)
+
+            os.unlink(tmp_path)
+
+        # 🔁 RESTART mic after playback
+        try:
+            import pyaudio
+            with self._suppress_alsa_messages():
+                self.pyaudio = pyaudio.PyAudio()
+            self.usb_mic_index = self._find_usb_mic_device()
+            logger.info("🎙️ Resumed audio input after playback")
+        except Exception as resume_err:
+            logger.warning(f"Failed to restart mic: {resume_err}")
+
+    except Exception as e:
+        logger.error(f"OpenAI TTS playback failed: {e}")
+        logger.info("Falling back to Piper TTS...")
+        self.queue_tts(text)
 
     
     def query_chatgpt(self, question):

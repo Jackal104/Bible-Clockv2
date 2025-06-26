@@ -82,7 +82,7 @@ class ServiceManager:
         
         # Start voice control if available
         if self.voice_control:
-            self.voice_control.start_listening()
+            self.voice_control.run_main_loop()
         elif os.getenv('ENABLE_VOICE', 'false').lower() == 'true':
             # Try to initialize voice control if enabled but not provided
             try:
@@ -91,7 +91,7 @@ class ServiceManager:
                     self.verse_manager, self.image_generator, self.display_manager
                 )
                 if self.voice_control.enabled:
-                    self.voice_control.start_listening()
+                    self.voice_control.run_main_loop()
                     self.logger.info("Voice control auto-initialized")
             except Exception as e:
                 self.logger.error(f"Voice control auto-initialization failed: {e}")
