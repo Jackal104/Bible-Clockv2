@@ -8,6 +8,7 @@ import os
 import sys
 import logging
 import speech_recognition as sr
+from src.conversation_manager import ConversationManager
 import time as time_module
 import subprocess
 import tempfile
@@ -71,6 +72,16 @@ class VoiceAssistant:
         # Voice components
         self.verse_manager = verse_manager
         self.recognizer = None
+        
+        # Conversation management and metrics
+        self.conversation_manager = ConversationManager()
+        
+        # Timing metrics for performance tracking
+        self.timing_metrics = {
+            'speech_recognition_time': 0.0,
+            'chatgpt_processing_time': 0.0,
+            'tts_generation_time': 0.0
+        }
         self.openai_client = None
         self.porcupine = None
         self.pyaudio = None
@@ -946,7 +957,9 @@ class VoiceAssistant:
 
     
     def query_chatgpt(self, question):
-        """Send question to ChatGPT using streaming API for real-time responses."""
+        """Send question to ChatGPT using streaming API with conversation context and metrics."""
+        chatgpt_start_time = time_module.time()
+        
         try:
             if not self.openai_client:
                 return "I need an OpenAI API key to answer questions. Please configure it in your environment."
@@ -960,14 +973,22 @@ class VoiceAssistant:
                 if verse_data:
                     current_verse = f"Current verse displayed: {verse_data.get('reference', '')} - {verse_data.get('text', '')}"
             
-            # Create system prompt with current verse context
+            # Get conversation context for multi-turn conversations
+            conversation_context = self.conversation_manager.get_conversation_context(turns_back=3)
+            
+            # Create enhanced system prompt with context
+            context_section = ""
+            if conversation_context:
+                context_section = f"\n\nRecent conversation context:\n{conversation_context}\n"
+            
             full_system_prompt = f"""{self.system_prompt}
             
-{current_verse}
+{current_verse}{context_section}
 
-When asked to "explain this verse" or similar, refer to the current verse displayed above."""
+When asked to "explain this verse" or similar, refer to the current verse displayed above.
+For follow-up questions like "continue", "tell me more", or "explain further", refer to our previous conversation."""
             
-            # Record GPT start time
+            # Record GPT start time for metrics
             self.metrics['gpt_start_time'] = time_module.time()
             
             # Use streaming for real-time response
@@ -1014,7 +1035,13 @@ When asked to "explain this verse" or similar, refer to the current verse displa
                 
                 # Use OpenAI TTS for the complete response if early TTS wasn't triggered
                 if not early_tts_sent and full_response.strip():
+                    tts_start_time = time_module.time()
                     self._play_openai_tts_stream(full_response.strip())
+                    self.timing_metrics['tts_generation_time'] = time_module.time() - tts_start_time
+                
+                # Record conversation with metrics
+                self.timing_metrics['chatgpt_processing_time'] = time_module.time() - chatgpt_start_time
+                self.conversation_manager.record_conversation(question, full_response.strip(), self.timing_metrics)
                 
                 logger.info(f"ChatGPT streaming response: {full_response[:100]}...")
                 return full_response
@@ -1038,7 +1065,13 @@ When asked to "explain this verse" or similar, refer to the current verse displa
                 
                 # Use OpenAI TTS for legacy API response too
                 if answer.strip():
+                    tts_start_time = time_module.time()
                     self._play_openai_tts_stream(answer.strip())
+                    self.timing_metrics['tts_generation_time'] = time_module.time() - tts_start_time
+                
+                # Record conversation with metrics for legacy API
+                self.timing_metrics['chatgpt_processing_time'] = time_module.time() - chatgpt_start_time
+                self.conversation_manager.record_conversation(question, answer.strip(), self.timing_metrics)
                 
                 logger.info(f"ChatGPT response: {answer[:100]}...")
                 return answer

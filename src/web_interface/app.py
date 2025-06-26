@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 from flask import Flask, jsonify, request, render_template, send_file
 from pathlib import Path
 import psutil
+from src.conversation_manager import ConversationManager
 
 def create_app(verse_manager, image_generator, display_manager, service_manager, performance_monitor):
     """Create enhanced Flask application."""
@@ -25,6 +26,7 @@ def create_app(verse_manager, image_generator, display_manager, service_manager,
     app.display_manager = display_manager
     app.service_manager = service_manager
     app.performance_monitor = performance_monitor
+    app.conversation_manager = ConversationManager()
     
     @app.route('/')
     def index():
@@ -548,6 +550,59 @@ def create_app(verse_manager, image_generator, display_manager, service_manager,
             
         except Exception as e:
             app.logger.error(f"Voice settings API error: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    # === Conversation Analytics API ===
+    
+    @app.route('/api/conversation/analytics', methods=['GET'])
+    def get_conversation_analytics():
+        """Get conversation analytics and metrics."""
+        try:
+            days_back = request.args.get('days', 7, type=int)
+            analytics = app.conversation_manager.get_analytics(days_back)
+            return jsonify({'success': True, 'data': analytics})
+        except Exception as e:
+            app.logger.error(f"Conversation analytics API error: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    @app.route('/api/conversation/sessions', methods=['GET'])
+    def get_conversation_sessions():
+        """Get active conversation sessions."""
+        try:
+            active_sessions = [
+                {
+                    'session_id': session.session_id,
+                    'created_at': session.created_at.isoformat(),
+                    'last_activity': session.last_activity.isoformat(),
+                    'turn_count': len(session.turns),
+                    'is_current': session.session_id == app.conversation_manager.current_session.session_id if app.conversation_manager.current_session else False
+                }
+                for session in app.conversation_manager.sessions.values()
+                if not session.is_expired()
+            ]
+            return jsonify({'success': True, 'data': active_sessions})
+        except Exception as e:
+            app.logger.error(f"Conversation sessions API error: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    @app.route('/api/conversation/suggestions', methods=['GET'])
+    def get_bible_study_suggestions():
+        """Get Bible study suggestions based on conversation history."""
+        try:
+            suggestions = app.conversation_manager.get_bible_study_suggestions()
+            return jsonify({'success': True, 'data': suggestions})
+        except Exception as e:
+            app.logger.error(f"Bible study suggestions API error: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    @app.route('/api/conversation/memory', methods=['GET'])
+    def get_conversation_memory():
+        """Get conversation context/memory for current session."""
+        try:
+            context = app.conversation_manager.get_conversation_context(turns_back=5)
+            return jsonify({'success': True, 'data': {'context': context}})
+        except Exception as e:
+            app.logger.error(f"Conversation memory API error: {e}")
             return jsonify({'success': False, 'error': str(e)}), 500
     
     # === Piper Voice Management API ===

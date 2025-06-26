@@ -80,7 +80,11 @@ class ServiceManager:
         # Start advanced scheduler
         self.scheduler.start()
         
-        # Start voice control if available
+        # Start web interface FIRST (before voice control blocks)
+        if self.web_interface:
+            self._start_web_interface()
+        
+        # Start voice control if available (runs in blocking mode)
         if self.voice_control:
             self.voice_control.run_main_loop()
         elif os.getenv('ENABLE_VOICE', 'false').lower() == 'true':
@@ -95,10 +99,6 @@ class ServiceManager:
                     self.logger.info("Voice control auto-initialized")
             except Exception as e:
                 self.logger.error(f"Voice control auto-initialization failed: {e}")
-        
-        # Start web interface if available
-        if self.web_interface:
-            self._start_web_interface()
         
         # Initial verse display
         self._update_verse()
