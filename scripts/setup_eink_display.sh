@@ -16,19 +16,31 @@ fi
 echo "📡 Enabling SPI interface..."
 sudo raspi-config nonint do_spi 0
 
+# Check if SPI is properly configured
+echo "🔍 Checking SPI configuration..."
+if ! grep -q "^dtparam=spi=on" /boot/config.txt; then
+    echo "Adding SPI configuration to /boot/config.txt..."
+    echo "dtparam=spi=on" | sudo tee -a /boot/config.txt
+    echo "⚠️  SPI enabled in config - reboot required before continuing"
+    echo "Please run 'sudo reboot' and then re-run this script"
+    exit 0
+fi
+
 # Install system dependencies
 echo "📦 Installing system dependencies..."
 sudo apt-get update
 sudo apt-get install -y \
-    python3-dev \
     python3-pip \
+    python3-dev \
+    python3-venv \
     build-essential \
     git \
-    libjpeg-dev \
     zlib1g-dev \
     libfreetype6-dev \
     liblcms2-dev \
     libopenjp2-7 \
+    libjpeg-dev \
+    libtiff5-dev \
     libgpiod-dev \
     gpiod
 
@@ -50,14 +62,12 @@ pip install RPi.GPIO spidev numpy
 
 # Clone and install IT8951 library
 echo "📚 Installing IT8951 library..."
-cd /tmp
-if [ -d "IT8951" ]; then
-    rm -rf IT8951
+DRIVER_DIR="$HOME/IT8951"
+if [ ! -d "$DRIVER_DIR" ]; then
+    git clone https://github.com/GregDMeyer/IT8951.git "$DRIVER_DIR"
 fi
-
-git clone https://github.com/GregDMeyer/IT8951.git
-cd IT8951
-pip install .
+cd "$DRIVER_DIR"
+pip install .[rpi]
 
 # Verify installation
 echo "✅ Verifying installation..."
