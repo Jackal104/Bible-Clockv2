@@ -28,7 +28,9 @@ sudo apt-get install -y \
     zlib1g-dev \
     libfreetype6-dev \
     liblcms2-dev \
-    libopenjp2-7
+    libopenjp2-7 \
+    libgpiod-dev \
+    gpiod
 
 # Get script directory and project directory
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
