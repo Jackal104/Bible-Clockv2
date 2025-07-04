@@ -156,6 +156,11 @@ def create_app(verse_manager, image_generator, display_manager, service_manager,
                 app.verse_manager.secondary_translation = data['secondary_translation']
                 app.logger.info(f"Secondary translation: {data['secondary_translation']}")
             
+            # Update devotional interval
+            if 'devotional_interval' in data:
+                os.environ['DEVOTIONAL_INTERVAL'] = str(data['devotional_interval'])
+                app.logger.info(f"Devotional interval changed to: {data['devotional_interval']} minutes")
+            
             # Update background
             if 'background_index' in data:
                 app.image_generator.set_background(data['background_index'])

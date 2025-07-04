@@ -761,9 +761,9 @@ class ImageGenerator:
             next_change = verse_data.get('next_verse_minutes', 0)
             
             if cycle_info and next_change:
-                display_text = f"{now.strftime('%B %d, %Y')}\n{cycle_info} • Next: {next_change}m"
+                display_text = f"{now.strftime('%I:%M %p')} • {now.strftime('%B %d, %Y')}\n{cycle_info} • Next: {next_change}m"
             else:
-                display_text = now.strftime('%B %d, %Y')
+                display_text = f"{now.strftime('%I:%M %p')} • {now.strftime('%B %d, %Y')}"
         else:
             # Regular verse mode - show reference
             display_text = verse_data.get('reference', 'Unknown')

@@ -3,13 +3,13 @@ Manages Bible verse retrieval and scheduling.
 """
 
 import json
+import os
 import random
 import requests
 import logging
 from datetime import datetime, time, date
 from pathlib import Path
 from typing import Dict, List, Optional
-import os
 import calendar
 
 class VerseManager:
@@ -417,11 +417,12 @@ class VerseManager:
         now = datetime.now()
         today = now.date()
         
-        # Calculate which verse to show based on 15-minute intervals
-        # This gives us 4 verses per hour, 96 verse slots per day
-        quarter_hour = now.minute // 15  # 0, 1, 2, or 3
+        # Calculate which verse to show based on configurable devotional interval
+        devotional_interval = int(os.getenv('DEVOTIONAL_INTERVAL', '15'))  # Default to 15 minutes
+        intervals_per_hour = 60 // devotional_interval
+        interval_index = now.minute // devotional_interval
         hour = now.hour
-        verse_index = (hour * 4) + quarter_hour  # 0-95
+        verse_index = (hour * intervals_per_hour) + interval_index
         
         # First, try to get verses for exact date (MM-DD format)
         date_key = f"{today.month:02d}-{today.day:02d}"
@@ -491,17 +492,18 @@ class VerseManager:
                 'event_description': event_info.get('description', 'Biblical wisdom for today'),
                 'date_match': match_type,
                 'verse_cycle_position': f"{verse_index % len(available_verses) + 1} of {len(available_verses)}",
-                'next_verse_minutes': 15 - (now.minute % 15)
+                'next_verse_minutes': devotional_interval - (now.minute % devotional_interval)
             }
         
         # Ultimate fallback to random verse with date context
+        devotional_interval = int(os.getenv('DEVOTIONAL_INTERVAL', '15'))  # Re-get for fallback
         fallback = random.choice(self.fallback_verses)
         fallback['is_date_event'] = True
         fallback['event_name'] = f"Daily Blessing for {today.strftime('%B %d')}"
         fallback['event_description'] = "God's word for today"
         fallback['date_match'] = 'fallback'
         fallback['verse_cycle_position'] = "1 of 1"
-        fallback['next_verse_minutes'] = 15 - (now.minute % 15)
+        fallback['next_verse_minutes'] = devotional_interval - (now.minute % devotional_interval)
         
         return fallback
     
